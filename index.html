@@ -57,7 +57,7 @@
         canvasId: 'canvas1',
         segURL: 'db/Segmentation/switzerland_S.json',
         depURL: 'db/Depth/switzerland_D.json',
-        bgmURL: 'assets/sound/switzerland_tiktok.mp3',
+        bgmURL: 'assets/bgm/switzerland_tiktok.mp3',
       },
       {
         videoId: 'video2',
@@ -69,12 +69,18 @@
     ];
 
     const segSounds = {
+      0: new Audio('assets/sound/grass_sound.mp3'),
+      1: new Audio('assets/sound/building_sound.mp3'),
       2: new Audio('assets/sound/blue_sky.mp3'),
       13: new Audio('assets/sound/grass_sound.mp3'),
       16: new Audio('assets/sound/mountain_rocks.mp3'),
       21: new Audio('assets/sound/water_sound.mp3'),
+      26: new Audio('assets/sound/water_sound.mp3'),
+      34: new Audio('assets/sound/rock_sound.mp3'),
       76: new Audio('assets/sound/building_sound.mp3'),
+      86: new Audio('assets/sound/building_sound.mp3'),
       94: new Audio('assets/sound/grass_sound.mp3'),
+      140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
     const displayWidth = 500;

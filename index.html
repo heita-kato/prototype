@@ -10,7 +10,6 @@
     #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column; }
     #menu { display: flex; }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
-    canvas { border: 1px solid black; width: 100vw; height: auto; max-height: 100vh; }
     video { display: none; }
   </style>
 </head>
@@ -24,7 +23,7 @@
 
   <!-- ゲーム画面 -->
   <div id="game" class="game-screen">
-    <canvas id="gameCanvas" width="500" height="888"></canvas>
+    <canvas id="gameCanvas" width="500" height="888" style="width:500px; height:888px;"></canvas>
     <button onclick="goBack()">戻る</button>
     <video id="gameVideo" muted></video>
   </div>

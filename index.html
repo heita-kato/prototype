@@ -1,26 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Interactive Sound Gallery</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
       background: #111;
       overflow-x: hidden;
     }
-
     .container {
       display: flex;
-      width: 200vw; /* 2つ分の横幅（動画数×100vw） */
+      width: 200vw;
       height: 100vh;
       overflow-x: scroll;
       scroll-snap-type: x mandatory;
       -webkit-overflow-scrolling: touch;
     }
-
     .item {
       flex: 0 0 100vw;
       height: 100vh;
@@ -30,28 +27,24 @@
       scroll-snap-align: start;
       position: relative;
     }
-
     canvas {
       border: 1px solid black;
       width: 100vw;
       height: auto;
       max-height: 100vh;
     }
-
     video {
       display: none;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- スイス -->
-    <div class="item">
+  <div class="container" id="container">
+    <div class="item" data-index="0">
       <video id="video1" src="assets/scene/switzerland_tiktok.mp4" muted></video>
       <canvas id="canvas1" width="500" height="888"></canvas>
     </div>
-    <!-- ブラジル -->
-    <div class="item">
+    <div class="item" data-index="1">
       <video id="video2" src="assets/scene/brazil58_tiktok.mp4" muted></video>
       <canvas id="canvas2" width="500" height="888"></canvas>
     </div>
@@ -76,18 +69,12 @@
     ];
 
     const segSounds = {
-      0: new Audio('assets/sound/grass_sound.mp3'),
-      1: new Audio('assets/sound/building_sound.mp3'),
       2: new Audio('assets/sound/blue_sky.mp3'),
       13: new Audio('assets/sound/grass_sound.mp3'),
       16: new Audio('assets/sound/mountain_rocks.mp3'),
       21: new Audio('assets/sound/water_sound.mp3'),
-      26: new Audio('assets/sound/water_sound.mp3'),
-      34: new Audio('assets/sound/rock_sound.mp3'),
       76: new Audio('assets/sound/building_sound.mp3'),
-      86: new Audio('assets/sound/building_sound.mp3'),
       94: new Audio('assets/sound/grass_sound.mp3'),
-      140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
     const displayWidth = 500;
@@ -96,29 +83,30 @@
     const jsonHeight = 444;
     const SPARKLE_LIFETIME = 15;
 
-    for (const cfg of configs) {
-      setupInteractiveCanvas(cfg);
+    let bgms = [];
+
+    for (const [i, cfg] of configs.entries()) {
+      setupInteractiveCanvas(cfg, i);
     }
 
-    async function setupInteractiveCanvas({ videoId, canvasId, segURL, depURL, bgmURL }) {
+    async function setupInteractiveCanvas({ videoId, canvasId, segURL, depURL, bgmURL }, index) {
       const video = document.getElementById(videoId);
       const canvas = document.getElementById(canvasId);
       const ctx = canvas.getContext('2d');
       const bgm = new Audio(bgmURL);
-      bgm.loop = false;
+      bgm.loop = true;
       bgm.volume = 1.0;
+      bgms[index] = bgm;
 
       let segmentationMap = [];
       let depthMap = [];
       let sparklePoints = [];
 
       const segRes = await fetch(segURL);
-      const segData = await segRes.json();
-      segmentationMap = segData.map;
+      segmentationMap = (await segRes.json()).map;
 
       const depthRes = await fetch(depURL);
-      const depthData = await depthRes.json();
-      depthMap = depthData.map;
+      depthMap = (await depthRes.json()).map;
 
       canvas.addEventListener('click', (e) => {
         const rect = canvas.getBoundingClientRect();
@@ -127,7 +115,6 @@
 
         const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
         const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
-
         const segVal = segmentationMap[scaledY]?.[scaledX];
         const depVal = depthMap[scaledY]?.[scaledX];
         if (segVal == null || depVal == null) return;
@@ -136,11 +123,11 @@
 
         if (segVal in segSounds) {
           const sound = segSounds[segVal].cloneNode();
-          let volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-          sound.volume = volume;
+          sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
           sound.play();
         }
 
+        // ユーザー初回操作時に BGM 再生可能に
         if (bgm.paused) bgm.play();
       });
 
@@ -170,6 +157,31 @@
       video.play();
       requestAnimationFrame(draw);
     }
+
+    // スクロール位置でBGMを切り替える処理
+    const container = document.getElementById('container');
+    let currentIndex = 0;
+
+    container.addEventListener('scroll', () => {
+      const newIndex = Math.round(container.scrollLeft / window.innerWidth);
+      if (newIndex !== currentIndex) {
+        bgms.forEach((b, i) => {
+          if (i === newIndex) {
+            b.play().catch(() => {}); // ユーザー操作後に限り再生される
+          } else {
+            b.pause();
+            b.currentTime = 0;
+          }
+        });
+        currentIndex = newIndex;
+      }
+    });
+
+    // ユーザー初回クリックで全BGMが再生許可を得られるよう準備
+    document.body.addEventListener('click', () => {
+      bgms.forEach(b => b.play().then(() => b.pause()));
+    }, { once: true });
+
   </script>
 </body>
 </html>

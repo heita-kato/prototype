@@ -158,6 +158,9 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    window.startGame = startGame;
+    window.goBack = goBack;
+
     // 初回操作でオーディオの許可
     document.body.addEventListener('click', () => {
       configs.forEach(cfg => {

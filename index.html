@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Interactive Sound Test</title>
+  <style>
+    canvas { border: 1px solid black; }
+    body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; }
+  </style>
+</head>
+<body>
+  <video id="video" src="assets/scene/swizerland_tiktok.mp4" style="display:none;" muted></video>
+  <canvas id="canvas" width="500" height="888"></canvas>
+
+  <script type="module">
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('video');
+
+    const displayWidth = 500;
+    const displayHeight = 888;
+    const jsonWidth = 250;
+    const jsonHeight = 444;
+    const SPARKLE_LIFETIME = 15;
+
+    let segmentationMap = [];
+    let depthMap = [];
+    let sparklePoints = [];
+
+    const segSounds = {
+      2: new Audio('assets/sound/blue_sky.mp3'),
+      13: new Audio('assets/sound/grass_sound.mp3'),
+      16: new Audio('assets/sound/mountain_rocks.mp3'),
+      21: new Audio('assets/sound/water_sound.mp3'),
+      76: new Audio('assets/sound/building_sound.mp3'),
+      94: new Audio('assets/sound/grass_sound.mp3'),
+    };
+
+    async function loadJSON() {
+      const segRes = await fetch('db/segmentation.json');
+      const segData = await segRes.json();
+      segmentationMap = segData.map;
+
+      const depthRes = await fetch('db/depth_data.json');
+      const depthData = await depthRes.json();
+      depthMap = depthData.map;
+    }
+
+    // ✅ 修正：BGMとしてsoundフォルダのmp3を使う
+    const bgm = new Audio('assets/sound/swizerland_tiktok.mp3');
+    bgm.loop = false;
+    bgm.volume = 1.0;
+
+    function drawSparkles() {
+      for (const sparkle of sparklePoints) {
+        const { pos, lifetime } = sparkle;
+        const alpha = lifetime / SPARKLE_LIFETIME;
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        for (let i = 0; i < 10; i++) {
+          const offsetX = Math.floor(Math.random() * 11) - 5;
+          const offsetY = Math.floor(Math.random() * 11) - 5;
+          ctx.beginPath();
+          ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        sparkle.lifetime--;
+      }
+      sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
+    }
+
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const scaledX = Math.floor(x * jsonWidth / displayWidth);
+      const scaledY = Math.floor(y * jsonHeight / displayHeight);
+
+      const segVal = segmentationMap[scaledY][scaledX];
+      const depVal = depthMap[scaledY][scaledX];
+
+      sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
+
+      if (segVal in segSounds) {
+        const sound = segSounds[segVal].cloneNode();
+        let volume = 1.0;
+        if (segVal !== 2) {
+          volume = Math.max(0.1, Math.min(1.0, depVal / 1000));
+        }
+        sound.volume = volume;
+        sound.play();
+        console.log(`Clicked at: x=${x}, y=${y}, seg=${segVal}, dep=${depVal}, vol=${volume}`);
+      }
+    });
+
+    function draw() {
+      ctx.drawImage(video, 0, 0, displayWidth, displayHeight);
+      drawSparkles();
+      requestAnimationFrame(draw);
+    }
+
+    await loadJSON();
+
+    // ✅ BGM開始（ユーザー操作後に開始されるように）
+    document.body.addEventListener('click', () => {
+      if (bgm.paused) {
+        bgm.play();
+      }
+    }, { once: true });
+
+    video.play();
+    requestAnimationFrame(draw);
+  </script>
+</body>
+</html>

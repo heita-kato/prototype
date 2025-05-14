@@ -2,36 +2,93 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- ✅ 追加 -->
-  <title>Interactive Sound Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Interactive Sound Gallery</title>
   <style>
-    html, body {
-      margin: 0;
-      padding: 0;
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
       background: #111;
-      height: 100%;
-      width: 100%;
+      overflow-x: hidden;
+    }
+
+    .container {
+      display: flex;
+      width: 200vw; /* 2つ分の横幅（動画数×100vw） */
+      height: 100vh;
+      overflow-x: scroll;
+      scroll-snap-type: x mandatory;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    .item {
+      flex: 0 0 100vw;
+      height: 100vh;
       display: flex;
       justify-content: center;
       align-items: center;
+      scroll-snap-align: start;
+      position: relative;
     }
 
     canvas {
       border: 1px solid black;
-      width: 100vw;           /* ✅ 画面幅にフィット */
-      height: auto;           /* ✅ アスペクト比維持 */
-      max-height: 100vh;      /* ✅ はみ出さないように制限 */
+      width: 100vw;
+      height: auto;
+      max-height: 100vh;
+    }
+
+    video {
+      display: none;
     }
   </style>
 </head>
 <body>
-  <video id="video" src="assets/scene/swizerland_tiktok.mp4" style="display:none;" muted></video>
-  <canvas id="canvas" width="500" height="888"></canvas>
+  <div class="container">
+    <!-- スイス -->
+    <div class="item">
+      <video id="video1" src="assets/scene/switzerland_tiktok.mp4" muted></video>
+      <canvas id="canvas1" width="500" height="888"></canvas>
+    </div>
+    <!-- ブラジル -->
+    <div class="item">
+      <video id="video2" src="assets/scene/brazil58_tiktok.mp4" muted></video>
+      <canvas id="canvas2" width="500" height="888"></canvas>
+    </div>
+  </div>
 
   <script type="module">
-    const canvas = document.getElementById('canvas');
-    const ctx = canvas.getContext('2d');
-    const video = document.getElementById('video');
+    const configs = [
+      {
+        videoId: 'video1',
+        canvasId: 'canvas1',
+        segURL: 'db/Segmentation/switzerland_S.json',
+        depURL: 'db/Depth/switzerland_D.json',
+        bgmURL: 'assets/sound/switzerland_tiktok.mp3',
+      },
+      {
+        videoId: 'video2',
+        canvasId: 'canvas2',
+        segURL: 'db/Segmentation/brazil58_S.json',
+        depURL: 'db/Depth/brazil58_D.json',
+        bgmURL: 'assets/bgm/brazil58_tiktok.mp3',
+      }
+    ];
+
+    const segSounds = {
+      0: new Audio('assets/sound/grass_sound.mp3'),
+      1: new Audio('assets/sound/building_sound.mp3'),
+      2: new Audio('assets/sound/blue_sky.mp3'),
+      13: new Audio('assets/sound/grass_sound.mp3'),
+      16: new Audio('assets/sound/mountain_rocks.mp3'),
+      21: new Audio('assets/sound/water_sound.mp3'),
+      26: new Audio('assets/sound/water_sound.mp3'),
+      34: new Audio('assets/sound/rock_sound.mp3'),
+      76: new Audio('assets/sound/building_sound.mp3'),
+      86: new Audio('assets/sound/building_sound.mp3'),
+      94: new Audio('assets/sound/grass_sound.mp3'),
+      140: new Audio('assets/sound/grass_sound.mp3'),
+    };
 
     const displayWidth = 500;
     const displayHeight = 888;
@@ -39,93 +96,80 @@
     const jsonHeight = 444;
     const SPARKLE_LIFETIME = 15;
 
-    let segmentationMap = [];
-    let depthMap = [];
-    let sparklePoints = [];
+    for (const cfg of configs) {
+      setupInteractiveCanvas(cfg);
+    }
 
-    const segSounds = {
-      2: new Audio('assets/sound/blue_sky.mp3'),
-      13: new Audio('assets/sound/grass_sound.mp3'),
-      16: new Audio('assets/sound/mountain_rocks.mp3'),
-      21: new Audio('assets/sound/water_sound.mp3'),
-      76: new Audio('assets/sound/building_sound.mp3'),
-      94: new Audio('assets/sound/grass_sound.mp3'),
-    };
+    async function setupInteractiveCanvas({ videoId, canvasId, segURL, depURL, bgmURL }) {
+      const video = document.getElementById(videoId);
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext('2d');
+      const bgm = new Audio(bgmURL);
+      bgm.loop = false;
+      bgm.volume = 1.0;
 
-    async function loadJSON() {
-      const segRes = await fetch('db/segmentation.json');
+      let segmentationMap = [];
+      let depthMap = [];
+      let sparklePoints = [];
+
+      const segRes = await fetch(segURL);
       const segData = await segRes.json();
       segmentationMap = segData.map;
 
-      const depthRes = await fetch('db/depth_data.json');
+      const depthRes = await fetch(depURL);
       const depthData = await depthRes.json();
       depthMap = depthData.map;
-    }
 
-    const bgm = new Audio('assets/sound/swizerland_tiktok.mp3');
-    bgm.loop = false;
-    bgm.volume = 1.0;
+      canvas.addEventListener('click', (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
 
-    function drawSparkles() {
-      for (const sparkle of sparklePoints) {
-        const { pos, lifetime } = sparkle;
-        const alpha = lifetime / SPARKLE_LIFETIME;
-        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-        for (let i = 0; i < 10; i++) {
-          const offsetX = Math.floor(Math.random() * 11) - 5;
-          const offsetY = Math.floor(Math.random() * 11) - 5;
-          ctx.beginPath();
-          ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
-          ctx.fill();
+        const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
+        const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
+
+        const segVal = segmentationMap[scaledY]?.[scaledX];
+        const depVal = depthMap[scaledY]?.[scaledX];
+        if (segVal == null || depVal == null) return;
+
+        sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
+
+        if (segVal in segSounds) {
+          const sound = segSounds[segVal].cloneNode();
+          let volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+          sound.volume = volume;
+          sound.play();
         }
-        sparkle.lifetime--;
-      }
-      sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
-    }
 
-    canvas.addEventListener('click', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+        if (bgm.paused) bgm.play();
+      });
 
-      const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
-      const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
-
-      const segVal = segmentationMap[scaledY]?.[scaledX];
-      const depVal = depthMap[scaledY]?.[scaledX];
-
-      if (segVal == null || depVal == null) return;
-
-      sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
-
-      if (segVal in segSounds) {
-        const sound = segSounds[segVal].cloneNode();
-        let volume = 1.0;
-        if (segVal !== 2) {
-          volume = Math.max(0.1, Math.min(1.0, depVal / 1000));
+      function drawSparkles() {
+        for (const sparkle of sparklePoints) {
+          const { pos, lifetime } = sparkle;
+          const alpha = lifetime / SPARKLE_LIFETIME;
+          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+          for (let i = 0; i < 10; i++) {
+            const offsetX = Math.floor(Math.random() * 11) - 5;
+            const offsetY = Math.floor(Math.random() * 11) - 5;
+            ctx.beginPath();
+            ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          sparkle.lifetime--;
         }
-        sound.volume = volume;
-        sound.play();
-        console.log(`Clicked at: x=${x}, y=${y}, seg=${segVal}, dep=${depVal}, vol=${volume}`);
+        sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
       }
-    });
 
-    function draw() {
-      ctx.drawImage(video, 0, 0, displayWidth, displayHeight);
-      drawSparkles();
+      function draw() {
+        ctx.drawImage(video, 0, 0, displayWidth, displayHeight);
+        drawSparkles();
+        requestAnimationFrame(draw);
+      }
+
+      video.play();
       requestAnimationFrame(draw);
     }
-
-    await loadJSON();
-
-    document.body.addEventListener('click', () => {
-      if (bgm.paused) {
-        bgm.play();
-      }
-    }, { once: true });
-
-    video.play();
-    requestAnimationFrame(draw);
   </script>
 </body>
 </html>

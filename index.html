@@ -108,8 +108,15 @@
 
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const x = (e.clientX - rect.left) * scaleX;
+      const y = (e.clientY - rect.top) * scaleY;
+
+      // 振動させる（対応端末のみ）
+      if (navigator.vibrate) {
+        navigator.vibrate(100); // 100ミリ秒振動
+      }
 
       const scaledX = Math.floor(x * 250 / canvas.clientWidth);
       const scaledY = Math.floor(y * 444 / canvas.clientHeight);

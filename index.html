@@ -171,21 +171,29 @@
     container.addEventListener('scroll', () => {
       const newIndex = Math.round(container.scrollLeft / window.innerWidth);
       if (newIndex !== currentIndex) {
-        bgms.forEach((b, i) => {
-          if (i === newIndex) {
-            b.play().catch(() => {}); // ユーザー操作後に限り再生される
-          } else {
-            b.pause();
-            b.currentTime = 0;
-          }
-        });
+        if (bgms[currentIndex]) {
+          bgms[currentIndex].pause();
+          bgms[currentIndex].currentTime = 0;
+        }
+        if (bgms[newIndex]) {
+          bgms[newIndex].play().catch(() => {});
+        }
         currentIndex = newIndex;
       }
     });
 
-    // ユーザー初回クリックで全BGMが再生許可を得られるよう準備
     document.body.addEventListener('click', () => {
-      bgms.forEach(b => b.play().then(() => b.pause()));
+      bgms.forEach((b, i) => {
+        b.play().then(() => {
+          if (i !== currentIndex) {
+            b.pause();
+            b.currentTime = 0;
+          }
+        });
+      });
+
+      // 現在のインデックスのBGMを再生
+      bgms[currentIndex].play().catch(() => {});
     }, { once: true });
 
   </script>

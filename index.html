@@ -6,62 +6,39 @@
   <title>Interactive Sound Gallery</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      background: #111;
-      overflow-x: hidden;
-    }
-    .container {
-      display: flex;
-      width: 200vw;
-      height: 100vh;
-      overflow-x: scroll;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-    }
-    .item {
-      flex: 0 0 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      scroll-snap-align: start;
-      position: relative;
-    }
-    canvas {
-      border: 1px solid black;
-      width: 100vw;
-      height: auto;
-      max-height: 100vh;
-    }
-    video {
-      display: none;
-    }
+    body { background: #111; color: white; font-family: sans-serif; text-align: center; }
+    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column; }
+    #menu { display: flex; }
+    button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
+    canvas { border: 1px solid black; width: 100vw; height: auto; max-height: 100vh; }
+    video { display: none; }
   </style>
 </head>
 <body>
-  <div class="container" id="container">
-    <div class="item" data-index="0">
-      <video id="video1" src="assets/scene/switzerland_tiktok.mp4" muted></video>
-      <canvas id="canvas1" width="500" height="888"></canvas>
-    </div>
-    <div class="item" data-index="1">
-      <video id="video2" src="assets/scene/brazil58_tiktok.mp4" muted></video>
-      <canvas id="canvas2" width="500" height="888"></canvas>
-    </div>
+  <!-- メインメニュー -->
+  <div id="menu">
+    <h1>どちらの世界へ？</h1>
+    <button onclick="startGame(0)">スイスの世界</button>
+    <button onclick="startGame(1)">ブラジルの世界</button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game" class="game-screen">
+    <canvas id="gameCanvas" width="500" height="888"></canvas>
+    <button onclick="goBack()">戻る</button>
+    <video id="gameVideo" muted></video>
   </div>
 
   <script type="module">
     const configs = [
       {
-        videoId: 'video1',
-        canvasId: 'canvas1',
+        videoSrc: 'assets/scene/switzerland_tiktok.mp4',
         segURL: 'db/Segmentation/switzerland_S.json',
         depURL: 'db/Depth/switzerland_D.json',
         bgmURL: 'assets/bgm/switzerland_tiktok.mp3',
       },
       {
-        videoId: 'video2',
-        canvasId: 'canvas2',
+        videoSrc: 'assets/scene/brazil58_tiktok.mp4',
         segURL: 'db/Segmentation/brazil58_S.json',
         depURL: 'db/Depth/brazil58_D.json',
         bgmURL: 'assets/bgm/brazil58_tiktok.mp3',
@@ -83,119 +60,111 @@
       140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
-    const displayWidth = 500;
-    const displayHeight = 888;
-    const jsonWidth = 250;
-    const jsonHeight = 444;
     const SPARKLE_LIFETIME = 15;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('gameVideo');
+    let currentBgm = null;
+    let animationId = null;
 
-    let bgms = [];
+    let segmentationMap = [], depthMap = [], sparklePoints = [];
 
-    for (const [i, cfg] of configs.entries()) {
-      setupInteractiveCanvas(cfg, i);
-    }
+    async function startGame(index) {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('game').style.display = 'flex';
 
-    async function setupInteractiveCanvas({ videoId, canvasId, segURL, depURL, bgmURL }, index) {
-      const video = document.getElementById(videoId);
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      const bgm = new Audio(bgmURL);
-      bgm.loop = true;
-      bgm.volume = 1.0;
-      bgms[index] = bgm;
+      const config = configs[index];
 
-      let segmentationMap = [];
-      let depthMap = [];
-      let sparklePoints = [];
+      // BGM 準備
+      if (currentBgm) {
+        currentBgm.pause();
+        currentBgm.currentTime = 0;
+      }
+      currentBgm = new Audio(config.bgmURL);
+      currentBgm.loop = true;
+      await currentBgm.play().catch(() => {}); // play() は許可後でないと失敗する可能性
 
-      const segRes = await fetch(segURL);
+      // Video 準備
+      video.src = config.videoSrc;
+      video.play();
+
+      // データ取得
+      const segRes = await fetch(config.segURL);
       segmentationMap = (await segRes.json()).map;
 
-      const depthRes = await fetch(depURL);
+      const depthRes = await fetch(config.depURL);
       depthMap = (await depthRes.json()).map;
 
-      canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
+      sparklePoints = [];
 
-        const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
-        const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
-        const segVal = segmentationMap[scaledY]?.[scaledX];
-        const depVal = depthMap[scaledY]?.[scaledX];
-        if (segVal == null || depVal == null) return;
-
-        sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
-
-        if (segVal in segSounds) {
-          const sound = segSounds[segVal].cloneNode();
-          sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-          sound.play();
-        }
-
-        // ユーザー初回操作時に BGM 再生可能に
-        if (bgm.paused) bgm.play();
-      });
-
-      function drawSparkles() {
-        for (const sparkle of sparklePoints) {
-          const { pos, lifetime } = sparkle;
-          const alpha = lifetime / SPARKLE_LIFETIME;
-          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-          for (let i = 0; i < 10; i++) {
-            const offsetX = Math.floor(Math.random() * 11) - 5;
-            const offsetY = Math.floor(Math.random() * 11) - 5;
-            ctx.beginPath();
-            ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          sparkle.lifetime--;
-        }
-        sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
-      }
-
+      // 描画開始
       function draw() {
-        ctx.drawImage(video, 0, 0, displayWidth, displayHeight);
+        ctx.drawImage(video, 0, 0, 500, 888);
         drawSparkles();
-        requestAnimationFrame(draw);
+        animationId = requestAnimationFrame(draw);
       }
-
-      video.play();
-      requestAnimationFrame(draw);
+      draw();
     }
 
-    // スクロール位置でBGMを切り替える処理
-    const container = document.getElementById('container');
-    let currentIndex = 0;
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
 
-    container.addEventListener('scroll', () => {
-      const newIndex = Math.round(container.scrollLeft / window.innerWidth);
-      if (newIndex !== currentIndex) {
-        if (bgms[currentIndex]) {
-          bgms[currentIndex].pause();
-          bgms[currentIndex].currentTime = 0;
-        }
-        if (bgms[newIndex]) {
-          bgms[newIndex].play().catch(() => {});
-        }
-        currentIndex = newIndex;
+      const scaledX = Math.floor(x * 250 / canvas.clientWidth);
+      const scaledY = Math.floor(y * 444 / canvas.clientHeight);
+      const segVal = segmentationMap[scaledY]?.[scaledX];
+      const depVal = depthMap[scaledY]?.[scaledX];
+      if (segVal == null || depVal == null) return;
+
+      sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
+
+      if (segVal in segSounds) {
+        const sound = segSounds[segVal].cloneNode();
+        sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        sound.play();
       }
     });
 
+    function drawSparkles() {
+      for (const sparkle of sparklePoints) {
+        const { pos, lifetime } = sparkle;
+        const alpha = lifetime / SPARKLE_LIFETIME;
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        for (let i = 0; i < 10; i++) {
+          const offsetX = Math.floor(Math.random() * 11) - 5;
+          const offsetY = Math.floor(Math.random() * 11) - 5;
+          ctx.beginPath();
+          ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        sparkle.lifetime--;
+      }
+      sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
+    }
+
+    function goBack() {
+      document.getElementById('game').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+
+      if (currentBgm) {
+        currentBgm.pause();
+        currentBgm.currentTime = 0;
+      }
+
+      if (animationId) cancelAnimationFrame(animationId);
+      video.pause();
+      video.currentTime = 0;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // 初回操作でオーディオの許可
     document.body.addEventListener('click', () => {
-      bgms.forEach((b, i) => {
-        b.play().then(() => {
-          if (i !== currentIndex) {
-            b.pause();
-            b.currentTime = 0;
-          }
-        });
+      configs.forEach(cfg => {
+        const tempBgm = new Audio(cfg.bgmURL);
+        tempBgm.play().then(() => tempBgm.pause());
       });
-
-      // 現在のインデックスのBGMを再生
-      bgms[currentIndex].play().catch(() => {});
     }, { once: true });
-
   </script>
 </body>
 </html>

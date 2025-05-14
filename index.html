@@ -18,8 +18,8 @@
   <!-- メインメニュー -->
   <div id="menu">
     <h1>どちらの世界へ？</h1>
-    <button onclick="startGame(0)">スイスの世界</button>
-    <button onclick="startGame(1)">ブラジルの世界</button>
+    <button id="swissBtn">スイスの世界</button>
+    <button id="brazilBtn">ブラジルの世界</button>
   </div>
 
   <!-- ゲーム画面 -->
@@ -161,13 +161,17 @@
     window.startGame = startGame;
     window.goBack = goBack;
 
-    // 初回操作でオーディオの許可
-    document.body.addEventListener('click', () => {
-      configs.forEach(cfg => {
-        const tempBgm = new Audio(cfg.bgmURL);
-        tempBgm.play().then(() => tempBgm.pause());
-      });
-    }, { once: true });
+    document.getElementById('swissBtn').addEventListener('click', () => startGame(0));
+    document.getElementById('brazilBtn').addEventListener('click', () => startGame(1));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('touchstart', unlockAudio, { once: true });
+      document.body.addEventListener('click', unlockAudio, { once: true });
+    });
+
+    function unlockAudio() {
+      bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
+    }
   </script>
 </body>
 </html>

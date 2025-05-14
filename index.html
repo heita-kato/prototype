@@ -2,10 +2,26 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"> <!-- ✅ 追加 -->
   <title>Interactive Sound Test</title>
   <style>
-    canvas { border: 1px solid black; }
-    body { margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; background: #111; }
+    html, body {
+      margin: 0;
+      padding: 0;
+      background: #111;
+      height: 100%;
+      width: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      border: 1px solid black;
+      width: 100vw;           /* ✅ 画面幅にフィット */
+      height: auto;           /* ✅ アスペクト比維持 */
+      max-height: 100vh;      /* ✅ はみ出さないように制限 */
+    }
   </style>
 </head>
 <body>
@@ -46,7 +62,6 @@
       depthMap = depthData.map;
     }
 
-    // ✅ 修正：BGMとしてsoundフォルダのmp3を使う
     const bgm = new Audio('assets/sound/swizerland_tiktok.mp3');
     bgm.loop = false;
     bgm.volume = 1.0;
@@ -73,11 +88,13 @@
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
 
-      const scaledX = Math.floor(x * jsonWidth / displayWidth);
-      const scaledY = Math.floor(y * jsonHeight / displayHeight);
+      const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
+      const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
 
-      const segVal = segmentationMap[scaledY][scaledX];
-      const depVal = depthMap[scaledY][scaledX];
+      const segVal = segmentationMap[scaledY]?.[scaledX];
+      const depVal = depthMap[scaledY]?.[scaledX];
+
+      if (segVal == null || depVal == null) return;
 
       sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
 
@@ -101,7 +118,6 @@
 
     await loadJSON();
 
-    // ✅ BGM開始（ユーザー操作後に開始されるように）
     document.body.addEventListener('click', () => {
       if (bgm.paused) {
         bgm.play();

@@ -110,10 +110,8 @@
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
       const y = e.clientY - rect.top;
-      // const scaleX = canvas.width / rect.width;
-      // const scaleY = canvas.height / rect.height;
-      // const x = (e.clientX - rect.left) * scaleX;
-      // const y = (e.clientY - rect.top) * scaleY;
+      const X = Math.floor(x * 500 / canvas.clientWidth);
+      const Y = Math.floor(y * 888 / canvas.clientHeight);
 
       // 振動させる（対応端末のみ）
       if (navigator.vibrate) {
@@ -126,7 +124,7 @@
       const depVal = depthMap[scaledY]?.[scaledX];
       if (segVal == null || depVal == null) return;
 
-      sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
+      sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
 
       if (segVal in segSounds) {
         const sound = segSounds[segVal].cloneNode();

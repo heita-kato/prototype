@@ -7,8 +7,15 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
-    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column; }
-    #menu { display: flex; }
+    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column;}
+    #menu {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 20px;
+  }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
     canvas { border: 1px solid rgb(255, 255, 255); width: 100vw; height: auto; max-height: 100vh; }
     video { display: none; }
@@ -18,25 +25,46 @@
     padding: 0;
     margin: 10px;
     cursor: pointer;
-  }
-  .image-button img {
-    width: 80vw;         /* スマホ画面幅の80% */
-    max-width: 400px;    /* 大きすぎる画像を抑える */
-    height: auto;
-    border-radius: 16px; /* 任意：角丸にする */
-    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-    transition: transform 0.1s ease;
-  }
-  .image-button:active img {
-    transform: scale(0.96); /* 押した感 */
-    opacity: 0.8;
-  }
+    }
+    .image-button img {
+      width: 80vw;         /* スマホ画面幅の80% */
+      max-width: 400px;    /* 大きすぎる画像を抑える */
+      height: auto;
+      border-radius: 16px; /* 任意：角丸にする */
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
+    }
+    .image-button:hover img {
+      transform: scale(1.03); /* 3%拡大 */
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* 影を追加 */
+    }
+    .image-button:active img {
+      transform: scale(0.96); /* 押した感 */
+      opacity: 0.8;
+    }
+    .back-button {
+      border-radius: 12px;       /* 角を丸く */
+      font-weight: bold;         /* 太字に */
+      padding: 12px 24px;        /* 余白をしっかり */
+      font-size: 16px;
+      background-color: #333;    /* 背景色（お好みで） */
+      color: white;              /* 文字色 */
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 軽い影 */
+      transition: all 0.2s ease;
+    }
+    .back-button:hover {
+      transform: scale(1.03);
+      background-color: #444;
+    }
   </style>
 </head>
 <body>
   <!-- メインメニュー -->
   <div id="menu">
-    <h1>風景を選択してください</h1>
+    <h1>Views</h1>
 
     <button id="swissBtn" class="image-button">
       <img src="assets/image/schwarzsee_and_ober_gabelhorn_m.jpg" alt="マッターホルン" />
@@ -50,7 +78,7 @@
   <!-- ゲーム画面 -->
   <div id="game" class="game-screen">
     <canvas id="gameCanvas" width="500" height="888"></canvas>
-    <button onclick="goBack()">戻る</button>
+    <button class="back-button" onclick="goBack()">Back</button>
     <video id="gameVideo" muted></video>
   </div>
 

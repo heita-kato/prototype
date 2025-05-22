@@ -73,6 +73,10 @@
     <button id="brazilBtn" class="image-button">
       <img src="assets/image/museum_of_tomorrow_2_m.jpg" alt="明日の博物館" />
     </button>
+
+    <button id="singapBtn" class="image-button">
+      <img src="assets\image\singapore_at_night_2_m.jpg" alt="シンガポール" />
+    </button>
   </div>
 
   <!-- ゲーム画面 -->
@@ -95,6 +99,12 @@
         segURL: 'db/Segmentation/brazil58_S.json',
         depURL: 'db/Depth/brazil58_D.json',
         bgmURL: 'assets/bgm/brazil58_tiktok.mp3',
+      },
+      {
+        videoSrc: 'assets/scene/singapore40_tiktok.mp4',
+        segURL: 'db/Segmentation/singapore40_S.json',
+        depURL: 'db/Depth/singapore40_D.json',
+        bgmURL: 'assets/bgm/singapore40_tiktok.mp3',
       }
     ];
 
@@ -224,6 +234,7 @@
 
     document.getElementById('swissBtn').addEventListener('click', () => startGame(0));
     document.getElementById('brazilBtn').addEventListener('click', () => startGame(1));
+    document.getElementById('singapBtn').addEventListener('click', () => startGame(2));
 
     document.addEventListener('DOMContentLoaded', () => {
       document.body.addEventListener('touchstart', unlockAudio, { once: true });

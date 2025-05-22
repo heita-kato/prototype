@@ -6,20 +6,45 @@
   <title>Interactive Sound Gallery</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #111; color: white; font-family: sans-serif; text-align: center; }
+    body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
     #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column; }
     #menu { display: flex; }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
-    canvas { border: 1px solid black; width: 100vw; height: auto; max-height: 100vh; }
+    canvas { border: 1px solid rgb(255, 255, 255); width: 100vw; height: auto; max-height: 100vh; }
     video { display: none; }
+    .image-button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 10px;
+    cursor: pointer;
+  }
+  .image-button img {
+    width: 80vw;         /* スマホ画面幅の80% */
+    max-width: 400px;    /* 大きすぎる画像を抑える */
+    height: auto;
+    border-radius: 16px; /* 任意：角丸にする */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+    transition: transform 0.1s ease;
+  }
+  .image-button:active img {
+    transform: scale(0.96); /* 押した感 */
+    opacity: 0.8;
+  }
   </style>
 </head>
 <body>
   <!-- メインメニュー -->
   <div id="menu">
-    <h1>どちらの世界へ？</h1>
-    <button id="swissBtn">スイスの世界</button>
-    <button id="brazilBtn">ブラジルの世界</button>
+    <h1>風景を選択してください</h1>
+
+    <button id="swissBtn" class="image-button">
+      <img src="assets/image/schwarzsee_and_ober_gabelhorn_m.jpg" alt="マッターホルン" />
+    </button>
+
+    <button id="brazilBtn" class="image-button">
+      <img src="assets/image/museum_of_tomorrow_2_m.jpg" alt="明日の博物館" />
+    </button>
   </div>
 
   <!-- ゲーム画面 -->

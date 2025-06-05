@@ -108,12 +108,37 @@
       }
     ];
 
+    // クラスラベル（ADE20K）
+    const ADE20K_CLASSES = [
+        "wall", "building", "sky", "floor", "tree", "ceiling", "road", "bed",
+        "window", "grass", "cabinet", "sidewalk", "person", "earth", "door", "table",
+        "mountain", "plant", "curtain", "chair", "car", "water", "painting", "sofa",
+        "shelf", "house", "sea", "mirror", "rug", "field", "armchair", "seat", "fence",
+        "desk", "rock", "wardrobe", "lamp", "bathtub", "railing", "cushion", "base",
+        "box", "column", "sign", "chest", "counter", "sand", "sink", "skyscraper",
+        "fireplace", "refrigerator", "grandstand", "path", "stairs", "runway", "case",
+        "pool", "pillow", "screen door", "stairway", "river", "bridge", "bookcase",
+        "blind", "coffee table", "toilet", "flower", "book", "hill", "bench",
+        "countertop", "stove", "palm", "kitchen island", "computer", "swivel chair",
+        "boat", "bar", "arcade machine", "hovel", "bus", "towel", "light", "truck",
+        "tower", "chandelier", "awning", "streetlight", "booth", "television receiver",
+        "airplane", "dirt", "apparel", "pole", "land", "bannister", "escalator",
+        "ottoman", "bottle", "buffet", "poster", "stage", "van", "ship", "fountain",
+        "conveyer belt", "canopy", "washer", "plaything", "swimming pool", "stool",
+        "barrel", "basket", "waterfall", "tent", "bag", "minibike", "cradle",
+        "oven", "ball", "food", "step", "tank", "trade name", "microwave", "pot",
+        "animal", "bicycle", "lake", "dishwasher", "screen", "blanket", "sculpture",
+        "hood", "sconce", "vase", "traffic light", "tray", "trash can", "fan",
+        "pier", "crt screen", "plate", "monitor", "bulletin board", "shower",
+        "radiator", "glass", "clock", "flag"
+    ];
+
     const segSounds = {
       0: [new Audio('assets/sound/grass_sound.mp3')],
       1: [new Audio('assets/sound/building_sound.mp3')],
-      2: [new Audio('assets/sound/blue_sky.mp3')],
+      2: [new Audio('assets/sound/sky_sound.mp3')],
       13: [new Audio('assets/sound/earth_sound.mp3')],
-      16: [new Audio('assets/sound/mountain_rocks.mp3')],
+      16: [new Audio('assets/sound/mountain_sound.mp3')],
       21: [new Audio('assets/sound/water_sound1.mp3'), new Audio('assets/sound/water_sound2.mp3'), new Audio('assets/sound/water_sound3.mp3'), new Audio('assets/sound/water_sound4.mp3'), new Audio('assets/sound/water_sound5.mp3')],
       26: [new Audio('assets/sound/water_sound1.mp3')],
       34: [new Audio('assets/sound/rock_sound.mp3')],
@@ -126,16 +151,16 @@
 
     const segDrag = {
       0: new Audio('assets/sound/grass_sound.mp3'),
-      1: new Audio('assets/sound/building_sound.mp3'),
-      2: new Audio('assets/sound/blue_sky.mp3'),
-      13: new Audio('assets/sound/earth_sound.mp3'),
-      16: new Audio('assets/sound/mountain_rocks.mp3'),
+      1: new Audio('assets/drag/building_drag.mp3'),
+      2: new Audio('assets/drag/sky_drag.mp3'),
+      13: new Audio('assets/drag/earth_drag.mp3'),
+      16: new Audio('assets/drag/mountain_drag.mp3'),
       21: new Audio('assets/drag/water_drag.mp3'),
       26: new Audio('assets/drag/sea_drag.mp3'),
-      34: new Audio('assets/sound/rock_sound.mp3'),
-      61: new Audio('assets/sound/bridge_sound.mp3'),
-      76: new Audio('assets/sound/building_sound.mp3'),
-      86: new Audio('assets/sound/building_sound.mp3'),
+      34: new Audio('assets/drag/rock_drag.mp3'),
+      61: new Audio('assets/drag/building_drag.mp3'),
+      76: new Audio('assets/drag/building_drag.mp3'),
+      86: new Audio('assets/drag/building_drag.mp3'),
       94: new Audio('assets/sound/grass_sound.mp3'),
       140: new Audio('assets/sound/grass_sound.mp3'),
     };
@@ -236,6 +261,7 @@
     //(2)ドラッグ
     let isDragging = false;
     let currentLoopSound = null; // ループ再生中の音
+    let currentLoopSegVal = null;
 
     // マウス操作
     canvas.addEventListener('mousedown', (e) => {
@@ -271,39 +297,50 @@
 
     function startLoopingSound(clientX, clientY) {
       const { segVal, depVal } = getSegAndDepth(clientX, clientY);
-      if (segVal == null || depVal == null) return;
+      if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
-      if (segVal in segDrag) {
-        const sound = segDrag[segVal].cloneNode();
-        sound.loop = true;
-        sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-        sound.play();
-        currentLoopSound = sound;
+      // 現在のセグメント値を記録
+      currentLoopSegVal = segVal;
 
-        // キラキラ追加（オプション）
-        const rect = canvas.getBoundingClientRect();
-        const x = clientX - rect.left;
-        const y = clientY - rect.top;
-        const X = Math.floor(x * 500 / canvas.clientWidth);
-        const Y = Math.floor(y * 888 / canvas.clientHeight);
-        sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
-      }
+      const sound = segDrag[segVal].cloneNode();
+      sound.loop = true;
+      sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      sound.play();
+      currentLoopSound = sound;
+
+      // キラキラ追加（オプション）
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const X = Math.floor(x * 500 / canvas.clientWidth);
+      const Y = Math.floor(y * 888 / canvas.clientHeight);
+      sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
     }
 
     function updateLoopingSound(clientX, clientY) {
-    const { segVal, depVal } = getSegAndDepth(clientX, clientY);
-    if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      //currentLoopSegVal = segVal;
+      //console.log("Current:", currentLoopSegVal, "New:", segVal);  //テスト
+      if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
-    // ★ 音が再生中なら、音量だけ更新して終了
-    if (currentLoopSound && !currentLoopSound.paused) {
-      // 音量の調整ロジック（例：セグメント2は最大、それ以外は深度に応じて）
-      currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-      return; // 再生中なのでこれ以上何もしない
-    }
+      if (segVal === currentLoopSegVal) {
+        // セグメントが同じなら音量だけ更新
+        if (currentLoopSound && !currentLoopSound.paused) {
+          currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        }
+        return;
+      }
 
-    // 再生されていない場合は再起動
-    stopLoopingSound();
-    startLoopingSound(clientX, clientY);
+      // セグメントが変わったら、今の音を止めて新しい音に切り替える
+      if (currentLoopSound) {
+        currentLoopSound.pause();
+        currentLoopSound.currentTime = 0;
+        currentLoopSound = null;
+      }
+      currentLoopSegVal = null; // stopLoopingSoundのisDraggingがない版
+
+      startLoopingSound(clientX, clientY);
+      console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);  //テスト
     }
 
     function stopLoopingSound() {
@@ -313,6 +350,7 @@
         currentLoopSound.currentTime = 0;
         currentLoopSound = null;
       }
+      currentLoopSegVal = null; // ← 忘れずにリセット
     }
 
     function getSegAndDepth(clientX, clientY) {

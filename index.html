@@ -124,6 +124,22 @@
       140: [new Audio('assets/sound/grass_sound.mp3')],
     };
 
+    const segDrag = {
+      0: new Audio('assets/sound/grass_sound.mp3'),
+      1: new Audio('assets/sound/building_sound.mp3'),
+      2: new Audio('assets/sound/blue_sky.mp3'),
+      13: new Audio('assets/sound/earth_sound.mp3'),
+      16: new Audio('assets/sound/mountain_rocks.mp3'),
+      21: new Audio('assets/drag/water_drag.mp3'),
+      26: new Audio('assets/drag/sea_drag.mp3'),
+      34: new Audio('assets/sound/rock_sound.mp3'),
+      61: new Audio('assets/sound/bridge_sound.mp3'),
+      76: new Audio('assets/sound/building_sound.mp3'),
+      86: new Audio('assets/sound/building_sound.mp3'),
+      94: new Audio('assets/sound/grass_sound.mp3'),
+      140: new Audio('assets/sound/grass_sound.mp3'),
+    };
+
     const SPARKLE_LIFETIME = 15;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -170,6 +186,7 @@
       draw();
     }
 
+    //(1)クリック
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -198,7 +215,7 @@
         sound.play();
       }
     });
-
+    
     function drawSparkles() {
       for (const sparkle of sparklePoints) {
         const { pos, lifetime } = sparkle;
@@ -215,6 +232,103 @@
       }
       sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
     }
+
+    //(2)ドラッグ
+    let isDragging = false;
+    let currentLoopSound = null; // ループ再生中の音
+
+    // マウス操作
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startLoopingSound(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('mouseup', stopLoopingSound);
+    canvas.addEventListener('mouseleave', stopLoopingSound);
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        updateLoopingSound(e.clientX, e.clientY);
+      }
+    });
+
+    // タッチ操作（スマホ用）
+    canvas.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      const touch = e.touches[0];
+      startLoopingSound(touch.clientX, touch.clientY);
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        const touch = e.touches[0];
+        updateLoopingSound(touch.clientX, touch.clientY);
+      }
+    });
+
+    canvas.addEventListener('touchend', stopLoopingSound);
+    canvas.addEventListener('touchcancel', stopLoopingSound);
+
+    function startLoopingSound(clientX, clientY) {
+      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      if (segVal == null || depVal == null) return;
+
+      if (segVal in segDrag) {
+        const sound = segDrag[segVal].cloneNode();
+        sound.loop = true;
+        sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        sound.play();
+        currentLoopSound = sound;
+
+        // キラキラ追加（オプション）
+        const rect = canvas.getBoundingClientRect();
+        const x = clientX - rect.left;
+        const y = clientY - rect.top;
+        const X = Math.floor(x * 500 / canvas.clientWidth);
+        const Y = Math.floor(y * 888 / canvas.clientHeight);
+        sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
+      }
+    }
+
+    function updateLoopingSound(clientX, clientY) {
+    const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+    if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+
+    // ★ 音が再生中なら、音量だけ更新して終了
+    if (currentLoopSound && !currentLoopSound.paused) {
+      // 音量の調整ロジック（例：セグメント2は最大、それ以外は深度に応じて）
+      currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      return; // 再生中なのでこれ以上何もしない
+    }
+
+    // 再生されていない場合は再起動
+    stopLoopingSound();
+    startLoopingSound(clientX, clientY);
+    }
+
+    function stopLoopingSound() {
+      isDragging = false;
+      if (currentLoopSound) {
+        currentLoopSound.pause();
+        currentLoopSound.currentTime = 0;
+        currentLoopSound = null;
+      }
+    }
+
+    function getSegAndDepth(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const scaledX = Math.floor(x * 250 / canvas.clientWidth);
+      const scaledY = Math.floor(y * 444 / canvas.clientHeight);
+
+      const segVal = segmentationMap[scaledY]?.[scaledX];
+      const depVal = depthMap[scaledY]?.[scaledX];
+
+      return { segVal, depVal };
+    }
+
 
     function goBack() {
       document.getElementById('game').style.display = 'none';

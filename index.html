@@ -1,174 +1,402 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Interactive Sound Gallery</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    body {
-      background: #111;
-      overflow-x: hidden;
+    body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
+    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column;}
+    #menu {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-evenly;
+    align-items: center;
+    padding: 20px;
+  }
+    button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
+    canvas { border: 1px solid rgb(255, 255, 255); width: 100vw; height: auto; max-height: 100vh; }
+    video { display: none; }
+    .image-button {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 10px;
+    cursor: pointer;
     }
-
-    .container {
-      display: flex;
-      width: 200vw; /* 2つ分の横幅（動画数×100vw） */
-      height: 100vh;
-      overflow-x: scroll;
-      scroll-snap-type: x mandatory;
-      -webkit-overflow-scrolling: touch;
-    }
-
-    .item {
-      flex: 0 0 100vw;
-      height: 100vh;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      scroll-snap-align: start;
-      position: relative;
-    }
-
-    canvas {
-      border: 1px solid black;
-      width: 100vw;
+    .image-button img {
+      width: 80vw;         /* スマホ画面幅の80% */
+      max-width: 400px;    /* 大きすぎる画像を抑える */
       height: auto;
-      max-height: 100vh;
+      border-radius: 16px; /* 任意：角丸にする */
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      cursor: pointer;
     }
-
-    video {
-      display: none;
+    .image-button:hover img {
+      transform: scale(1.03); /* 3%拡大 */
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* 影を追加 */
+    }
+    .image-button:active img {
+      transform: scale(0.96); /* 押した感 */
+      opacity: 0.8;
+    }
+    .back-button {
+      border-radius: 12px;       /* 角を丸く */
+      font-weight: bold;         /* 太字に */
+      padding: 12px 24px;        /* 余白をしっかり */
+      font-size: 16px;
+      background-color: #333;    /* 背景色（お好みで） */
+      color: white;              /* 文字色 */
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 軽い影 */
+      transition: all 0.2s ease;
+    }
+    .back-button:hover {
+      transform: scale(1.03);
+      background-color: #444;
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <!-- スイス -->
-    <div class="item">
-      <video id="video1" src="assets/scene/switzerland_tiktok.mp4" muted></video>
-      <canvas id="canvas1" width="500" height="888"></canvas>
-    </div>
-    <!-- ブラジル -->
-    <div class="item">
-      <video id="video2" src="assets/scene/brazil58_tiktok.mp4" muted></video>
-      <canvas id="canvas2" width="500" height="888"></canvas>
-    </div>
+  <!-- メインメニュー -->
+  <div id="menu">
+    <h1>Views</h1>
+
+    <button id="swissBtn" class="image-button">
+      <img src="assets/image/schwarzsee_and_ober_gabelhorn_m.jpg" alt="マッターホルン" />
+    </button>
+
+    <button id="brazilBtn" class="image-button">
+      <img src="assets/image/museum_of_tomorrow_2_m.jpg" alt="明日の博物館" />
+    </button>
+
+    <button id="singapBtn" class="image-button">
+      <img src="assets\image\singapore_at_night_2_m.jpg" alt="シンガポール" />
+    </button>
+  </div>
+
+  <!-- ゲーム画面 -->
+  <div id="game" class="game-screen">
+    <canvas id="gameCanvas" width="500" height="888"></canvas>
+    <button class="back-button" onclick="goBack()">Back</button>
+    <video id="gameVideo" muted></video>
   </div>
 
   <script type="module">
     const configs = [
       {
-        videoId: 'video1',
-        canvasId: 'canvas1',
+        videoSrc: 'assets/scene/switzerland_tiktok.mp4',
         segURL: 'db/Segmentation/switzerland_S.json',
         depURL: 'db/Depth/switzerland_D.json',
-        bgmURL: 'assets/sound/switzerland_tiktok.mp3',
+        bgmURL: 'assets/bgm/switzerland_tiktok.mp3',
       },
       {
-        videoId: 'video2',
-        canvasId: 'canvas2',
+        videoSrc: 'assets/scene/brazil58_tiktok.mp4',
         segURL: 'db/Segmentation/brazil58_S.json',
         depURL: 'db/Depth/brazil58_D.json',
         bgmURL: 'assets/bgm/brazil58_tiktok.mp3',
+      },
+      {
+        videoSrc: 'assets/scene/singapore40_tiktok.mp4',
+        segURL: 'db/Segmentation/singapore40_S.json',
+        depURL: 'db/Depth/singapore40_D.json',
+        bgmURL: 'assets/bgm/singapore40_tiktok.mp3',
       }
     ];
 
+    // クラスラベル（ADE20K）
+    const ADE20K_CLASSES = [
+        "wall", "building", "sky", "floor", "tree", "ceiling", "road", "bed",
+        "window", "grass", "cabinet", "sidewalk", "person", "earth", "door", "table",
+        "mountain", "plant", "curtain", "chair", "car", "water", "painting", "sofa",
+        "shelf", "house", "sea", "mirror", "rug", "field", "armchair", "seat", "fence",
+        "desk", "rock", "wardrobe", "lamp", "bathtub", "railing", "cushion", "base",
+        "box", "column", "sign", "chest", "counter", "sand", "sink", "skyscraper",
+        "fireplace", "refrigerator", "grandstand", "path", "stairs", "runway", "case",
+        "pool", "pillow", "screen door", "stairway", "river", "bridge", "bookcase",
+        "blind", "coffee table", "toilet", "flower", "book", "hill", "bench",
+        "countertop", "stove", "palm", "kitchen island", "computer", "swivel chair",
+        "boat", "bar", "arcade machine", "hovel", "bus", "towel", "light", "truck",
+        "tower", "chandelier", "awning", "streetlight", "booth", "television receiver",
+        "airplane", "dirt", "apparel", "pole", "land", "bannister", "escalator",
+        "ottoman", "bottle", "buffet", "poster", "stage", "van", "ship", "fountain",
+        "conveyer belt", "canopy", "washer", "plaything", "swimming pool", "stool",
+        "barrel", "basket", "waterfall", "tent", "bag", "minibike", "cradle",
+        "oven", "ball", "food", "step", "tank", "trade name", "microwave", "pot",
+        "animal", "bicycle", "lake", "dishwasher", "screen", "blanket", "sculpture",
+        "hood", "sconce", "vase", "traffic light", "tray", "trash can", "fan",
+        "pier", "crt screen", "plate", "monitor", "bulletin board", "shower",
+        "radiator", "glass", "clock", "flag"
+    ];
+
     const segSounds = {
+      0: [new Audio('assets/sound/grass_sound.mp3')],
+      1: [new Audio('assets/sound/building_sound.mp3')],
+      2: [new Audio('assets/sound/sky_sound.mp3')],
+      13: [new Audio('assets/sound/earth_sound.mp3')],
+      16: [new Audio('assets/sound/mountain_sound.mp3')],
+      21: [new Audio('assets/sound/water_sound1.mp3'), new Audio('assets/sound/water_sound2.mp3'), new Audio('assets/sound/water_sound3.mp3'), new Audio('assets/sound/water_sound4.mp3'), new Audio('assets/sound/water_sound5.mp3')],
+      26: [new Audio('assets/sound/water_sound1.mp3')],
+      34: [new Audio('assets/sound/rock_sound.mp3')],
+      61: [new Audio('assets/sound/bridge_sound.mp3')],
+      76: [new Audio('assets/sound/building_sound.mp3')],
+      86: [new Audio('assets/sound/building_sound.mp3')],
+      94: [new Audio('assets/sound/grass_sound.mp3')],
+      140: [new Audio('assets/sound/grass_sound.mp3')],
+    };
+
+    const segDrag = {
       0: new Audio('assets/sound/grass_sound.mp3'),
-      1: new Audio('assets/sound/building_sound.mp3'),
-      2: new Audio('assets/sound/blue_sky.mp3'),
-      13: new Audio('assets/sound/grass_sound.mp3'),
-      16: new Audio('assets/sound/mountain_rocks.mp3'),
-      21: new Audio('assets/sound/water_sound.mp3'),
-      26: new Audio('assets/sound/water_sound.mp3'),
-      34: new Audio('assets/sound/rock_sound.mp3'),
-      76: new Audio('assets/sound/building_sound.mp3'),
-      86: new Audio('assets/sound/building_sound.mp3'),
+      1: new Audio('assets/drag/building_drag.mp3'),
+      2: new Audio('assets/drag/sky_drag.mp3'),
+      13: new Audio('assets/drag/earth_drag.mp3'),
+      16: new Audio('assets/drag/mountain_drag.mp3'),
+      21: new Audio('assets/drag/water_drag.mp3'),
+      26: new Audio('assets/drag/sea_drag.mp3'),
+      34: new Audio('assets/drag/rock_drag.mp3'),
+      61: new Audio('assets/drag/building_drag.mp3'),
+      76: new Audio('assets/drag/building_drag.mp3'),
+      86: new Audio('assets/drag/building_drag.mp3'),
       94: new Audio('assets/sound/grass_sound.mp3'),
       140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
-    const displayWidth = 500;
-    const displayHeight = 888;
-    const jsonWidth = 250;
-    const jsonHeight = 444;
     const SPARKLE_LIFETIME = 15;
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const video = document.getElementById('gameVideo');
+    let currentBgm = null;
+    let animationId = null;
 
-    for (const cfg of configs) {
-      setupInteractiveCanvas(cfg);
+    let segmentationMap = [], depthMap = [], sparklePoints = [];
+
+    async function startGame(index) {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('game').style.display = 'flex';
+
+      const config = configs[index];
+
+      // BGM 準備
+      if (currentBgm) {
+        currentBgm.pause();
+        currentBgm.currentTime = 0;
+      }
+      currentBgm = new Audio(config.bgmURL);
+      currentBgm.loop = true;
+      await currentBgm.play().catch(() => {}); // play() は許可後でないと失敗する可能性
+
+      // Video 準備
+      video.src = config.videoSrc;
+      video.play();
+
+      // データ取得
+      const segRes = await fetch(config.segURL);
+      segmentationMap = (await segRes.json()).map;
+
+      const depthRes = await fetch(config.depURL);
+      depthMap = (await depthRes.json()).map;
+
+      sparklePoints = [];
+
+      // 描画開始
+      function draw() {
+        ctx.drawImage(video, 0, 0, 500, 888);
+        drawSparkles();
+        animationId = requestAnimationFrame(draw);
+      }
+      draw();
     }
 
-    async function setupInteractiveCanvas({ videoId, canvasId, segURL, depURL, bgmURL }) {
-      const video = document.getElementById(videoId);
-      const canvas = document.getElementById(canvasId);
-      const ctx = canvas.getContext('2d');
-      const bgm = new Audio(bgmURL);
-      bgm.loop = false;
-      bgm.volume = 1.0;
+    //(1)クリック
+    canvas.addEventListener('click', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const X = Math.floor(x * 500 / canvas.clientWidth);
+      const Y = Math.floor(y * 888 / canvas.clientHeight);
 
-      let segmentationMap = [];
-      let depthMap = [];
-      let sparklePoints = [];
-
-      const segRes = await fetch(segURL);
-      const segData = await segRes.json();
-      segmentationMap = segData.map;
-
-      const depthRes = await fetch(depURL);
-      const depthData = await depthRes.json();
-      depthMap = depthData.map;
-
-      canvas.addEventListener('click', (e) => {
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-
-        const scaledX = Math.floor(x * jsonWidth / canvas.clientWidth);
-        const scaledY = Math.floor(y * jsonHeight / canvas.clientHeight);
-
-        const segVal = segmentationMap[scaledY]?.[scaledX];
-        const depVal = depthMap[scaledY]?.[scaledX];
-        if (segVal == null || depVal == null) return;
-
-        sparklePoints.push({ pos: [x, y], lifetime: SPARKLE_LIFETIME });
-
-        if (segVal in segSounds) {
-          const sound = segSounds[segVal].cloneNode();
-          let volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-          sound.volume = volume;
-          sound.play();
-        }
-
-        if (bgm.paused) bgm.play();
-      });
-
-      function drawSparkles() {
-        for (const sparkle of sparklePoints) {
-          const { pos, lifetime } = sparkle;
-          const alpha = lifetime / SPARKLE_LIFETIME;
-          ctx.fillStyle = `rgba(255,255,255,${alpha})`;
-          for (let i = 0; i < 10; i++) {
-            const offsetX = Math.floor(Math.random() * 11) - 5;
-            const offsetY = Math.floor(Math.random() * 11) - 5;
-            ctx.beginPath();
-            ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
-            ctx.fill();
-          }
-          sparkle.lifetime--;
-        }
-        sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
+      // 振動させる（対応端末のみ）
+      if (navigator.vibrate) {
+        navigator.vibrate(100); // 100ミリ秒振動
       }
 
-      function draw() {
-        ctx.drawImage(video, 0, 0, displayWidth, displayHeight);
-        drawSparkles();
-        requestAnimationFrame(draw);
+      const scaledX = Math.floor(x * 250 / canvas.clientWidth);
+      const scaledY = Math.floor(y * 444 / canvas.clientHeight);
+      const segVal = segmentationMap[scaledY]?.[scaledX];
+      const depVal = depthMap[scaledY]?.[scaledX];
+      if (segVal == null || depVal == null) return;
+
+      sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
+
+      if (segVal in segSounds) {
+        const soundArray = segSounds[segVal];
+        const randomIndex = Math.floor(Math.random() * soundArray.length);
+        const sound = soundArray[randomIndex].cloneNode();
+        sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        sound.play();
+      }
+    });
+    
+    function drawSparkles() {
+      for (const sparkle of sparklePoints) {
+        const { pos, lifetime } = sparkle;
+        const alpha = lifetime / SPARKLE_LIFETIME;
+        ctx.fillStyle = `rgba(255,255,255,${alpha})`;
+        for (let i = 0; i < 10; i++) {
+          const offsetX = Math.floor(Math.random() * 11) - 5;
+          const offsetY = Math.floor(Math.random() * 11) - 5;
+          ctx.beginPath();
+          ctx.arc(pos[0] + offsetX, pos[1] + offsetY, 1, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        sparkle.lifetime--;
+      }
+      sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
+    }
+
+    //(2)ドラッグ
+    let isDragging = false;
+    let currentLoopSound = null; // ループ再生中の音
+    let currentLoopSegVal = null;
+
+    // マウス操作
+    canvas.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startLoopingSound(e.clientX, e.clientY);
+    });
+
+    canvas.addEventListener('mouseup', stopLoopingSound);
+    canvas.addEventListener('mouseleave', stopLoopingSound);
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (isDragging) {
+        updateLoopingSound(e.clientX, e.clientY);
+      }
+    });
+
+    // タッチ操作（スマホ用）
+    canvas.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      const touch = e.touches[0];
+      startLoopingSound(touch.clientX, touch.clientY);
+    });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (isDragging) {
+        const touch = e.touches[0];
+        updateLoopingSound(touch.clientX, touch.clientY);
+      }
+    });
+
+    canvas.addEventListener('touchend', stopLoopingSound);
+    canvas.addEventListener('touchcancel', stopLoopingSound);
+
+    function startLoopingSound(clientX, clientY) {
+      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+
+      // 現在のセグメント値を記録
+      currentLoopSegVal = segVal;
+
+      const sound = segDrag[segVal].cloneNode();
+      sound.loop = true;
+      sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      sound.play();
+      currentLoopSound = sound;
+
+      // キラキラ追加（オプション）
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+      const X = Math.floor(x * 500 / canvas.clientWidth);
+      const Y = Math.floor(y * 888 / canvas.clientHeight);
+      sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
+    }
+
+    function updateLoopingSound(clientX, clientY) {
+      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      //currentLoopSegVal = segVal;
+      //console.log("Current:", currentLoopSegVal, "New:", segVal);  //テスト
+      if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+
+      if (segVal === currentLoopSegVal) {
+        // セグメントが同じなら音量だけ更新
+        if (currentLoopSound && !currentLoopSound.paused) {
+          currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        }
+        return;
       }
 
-      video.play();
-      requestAnimationFrame(draw);
+      // セグメントが変わったら、今の音を止めて新しい音に切り替える
+      if (currentLoopSound) {
+        currentLoopSound.pause();
+        currentLoopSound.currentTime = 0;
+        currentLoopSound = null;
+      }
+      currentLoopSegVal = null; // stopLoopingSoundのisDraggingがない版
+
+      startLoopingSound(clientX, clientY);
+      console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);  //テスト
+    }
+
+    function stopLoopingSound() {
+      isDragging = false;
+      if (currentLoopSound) {
+        currentLoopSound.pause();
+        currentLoopSound.currentTime = 0;
+        currentLoopSound = null;
+      }
+      currentLoopSegVal = null; // ← 忘れずにリセット
+    }
+
+    function getSegAndDepth(clientX, clientY) {
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      const y = clientY - rect.top;
+
+      const scaledX = Math.floor(x * 250 / canvas.clientWidth);
+      const scaledY = Math.floor(y * 444 / canvas.clientHeight);
+
+      const segVal = segmentationMap[scaledY]?.[scaledX];
+      const depVal = depthMap[scaledY]?.[scaledX];
+
+      return { segVal, depVal };
+    }
+
+
+    function goBack() {
+      document.getElementById('game').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+
+      if (currentBgm) {
+        currentBgm.pause();
+        currentBgm.currentTime = 0;
+      }
+
+      if (animationId) cancelAnimationFrame(animationId);
+      video.pause();
+      video.currentTime = 0;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    window.startGame = startGame;
+    window.goBack = goBack;
+
+    document.getElementById('swissBtn').addEventListener('click', () => startGame(0));
+    document.getElementById('brazilBtn').addEventListener('click', () => startGame(1));
+    document.getElementById('singapBtn').addEventListener('click', () => startGame(2));
+
+    document.addEventListener('DOMContentLoaded', () => {
+      document.body.addEventListener('touchstart', unlockAudio, { once: true });
+      document.body.addEventListener('click', unlockAudio, { once: true });
+    });
+
+    function unlockAudio() {
+      bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
     }
   </script>
 </body>

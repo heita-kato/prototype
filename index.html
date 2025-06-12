@@ -7,7 +7,7 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
-    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column;}
+    .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column; overflow: hidden;}
     #menu {
     height: 100vh;
     display: flex;
@@ -46,7 +46,8 @@
     .back-button {
       border-radius: 12px;       /* 角を丸く */
       font-weight: bold;         /* 太字に */
-      padding: 12px 24px;        /* 余白をしっかり */
+      margin-top: 1px;
+      padding: 6px 12px;        /* 余白をしっかり */
       font-size: 16px;
       background-color: #333;    /* 背景色（お好みで） */
       color: white;              /* 文字色 */
@@ -55,6 +56,7 @@
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 軽い影 */
       transition: all 0.2s ease;
       user-select: none;
+      justify-content: flex-start;
     }
     .back-button:hover {
       transform: scale(1.03);

@@ -258,17 +258,16 @@
       const y = e.clientY - rect.top;
       const X = Math.floor(x * 500 / canvas.clientWidth);
       const Y = Math.floor(y * 888 / canvas.clientHeight);
-
-      const category = getSegmentCategory(segVal);
-      if (navigator.vibrate && category && vibrationPatterns[category]) {
-        navigator.vibrate(vibrationPatterns[category]);
-      }
-
       const scaledX = Math.floor(x * 250 / canvas.clientWidth);
       const scaledY = Math.floor(y * 444 / canvas.clientHeight);
       const segVal = segmentationMap[scaledY]?.[scaledX];
       const depVal = depthMap[scaledY]?.[scaledX];
       if (segVal == null || depVal == null) return;
+
+      const category = getSegmentCategory(segVal);
+      if (navigator.vibrate && category && vibrationPatterns[category]) {
+        navigator.vibrate(vibrationPatterns[category]);
+      }
 
       sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
 

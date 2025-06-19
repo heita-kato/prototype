@@ -191,7 +191,7 @@
       grass: [10, 5, 10, 5],
       mountain: [100, 50, 100],
       water: [20, 20, 20, 20],
-      sky: [10, 100],
+      sky: [5, 50],
       building: [10, 20, 40, 80]
     };
 
@@ -344,9 +344,18 @@
       if (navigator.vibrate && category && vibrationPatterns[category]) {
         // 振動を定期的に実行
         clearInterval(vibrationIntervalId); // 前の振動ループを止める
+        // 深度 depVal をもとに振動の強さ（duration）をスケーリング
+        const intensityScale = Math.max(0.1, Math.min(1.0, depVal / 1000));
+
+        // 元のパターンを depVal に応じてスケーリング
+        const basePattern = vibrationPatterns[category];
+        const scaledPattern = basePattern.map(ms => Math.round(ms * intensityScale));
+
+        const interval = vibrationIntervals[category] || 300;
+
         vibrationIntervalId = setInterval(() => {
-          navigator.vibrate(vibrationPatterns[category]);
-        }, interval); // 適宜間隔を調整（?msごとに振動）
+          navigator.vibrate(scaledPattern);
+        }, interval);
       }
 
       // 現在のセグメント値を記録

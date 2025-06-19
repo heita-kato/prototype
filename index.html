@@ -189,6 +189,15 @@
 
     let segmentationMap = [], depthMap = [], sparklePoints = [];
 
+    function resizeGameScreen() {
+      const gameScreen = document.querySelector('.game-screen');
+      gameScreen.style.height = `${window.innerHeight}px`;
+    }
+
+    window.addEventListener('resize', resizeGameScreen);
+    window.addEventListener('orientationchange', resizeGameScreen);
+    window.addEventListener('load', resizeGameScreen);
+
     async function startGame(index) {
       document.getElementById('menu').style.display = 'none';
       document.getElementById('game').style.display = 'flex';

@@ -327,9 +327,15 @@
 
       const sound = segDrag[segVal].cloneNode();
       sound.loop = true;
-      sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      sound.volume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
       sound.play();
       currentLoopSound = sound;
+
+      //バイブレーション
+      if (navigator.vibrate) {
+        const pattern = getVibrationPattern(depVal); // ← NEW
+        navigator.vibrate(pattern);
+      }
 
       // キラキラ追加（オプション）
       const rect = canvas.getBoundingClientRect();
@@ -350,6 +356,11 @@
         // セグメントが同じなら音量だけ更新
         if (currentLoopSound && !currentLoopSound.paused) {
           currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+          // ← NEW: 強さに応じたバイブ
+          if (navigator.vibrate) {
+            const pattern = getVibrationPattern(depVal);
+            navigator.vibrate(pattern);
+          }
         }
         return;
       }
@@ -420,6 +431,14 @@
 
     function unlockAudio() {
       bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
+    }
+
+    function getVibrationPattern(depVal) {
+      // 深さに応じて強度を変える（簡易例：間隔や持続時間を増やす）
+      const base = Math.max(10, Math.min(100, depVal / 5)); // 10～100ミリ秒
+
+      // 連打パターン（数字が多いほど振動が多く感じられる）
+      return [base, base / 2, base, base / 2];
     }
   </script>
 </body>

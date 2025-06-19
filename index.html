@@ -31,11 +31,8 @@
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
     canvas {
       border: 1px solid black;
-      width: 100vw;         /* 画面幅の100%に表示 */
-      max-width: 500px;    /* 最大サイズを制限（もとの解像度と同じ） */
-      aspect-ratio: 500 / 888;  /* ← 重要：アスペクト比を固定 */
       display: block;
-      margin: 0 auto;      /* 中央寄せ（任意） */
+      margin: 0 auto;
     }
     video { display: none; }
     .image-button {
@@ -200,6 +197,7 @@
       document.getElementById('game').style.display = 'flex';
 
       // スクロール位置をトップに戻す
+      resizeCanvas();
       window.scrollTo({ top: 0, behavior: 'smooth' });
       const config = configs[index];
 
@@ -390,6 +388,15 @@
       return { segVal, depVal };
     }
 
+    function resizeCanvas() {
+      const canvas = document.getElementById('gameCanvas');
+      const aspectRatio = 888 / 500;
+      const maxWidth = Math.min(window.innerWidth * 0.9, 500); // 最大90vwか500px
+      const height = maxWidth * aspectRatio;
+
+      canvas.style.width = `${maxWidth}px`;
+      canvas.style.height = `${height}px`;
+    }
 
     function goBack() {
       document.getElementById('game').style.display = 'none';

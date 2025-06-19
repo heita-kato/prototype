@@ -29,7 +29,14 @@
     padding: 20px;
   }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
-    canvas { border: 1px solid rgb(0, 0, 0);}
+    canvas {
+      border: 1px solid black;
+      width: 90vw;         /* 画面幅の90%に縮小表示 */
+      max-width: 500px;    /* 最大サイズを制限（もとの解像度と同じ） */
+      height: auto;        /* 高さは自動でアスペクト比維持 */
+      display: block;
+      margin: 0 auto;      /* 中央寄せ（任意） */
+    }
     video { display: none; }
     .image-button {
     background: none;
@@ -96,7 +103,7 @@
 
   <!-- ゲーム画面 -->
   <div id="game" class="game-screen">
-    <canvas id="gameCanvas" width="250" height="444"></canvas>
+    <canvas id="gameCanvas" width="500" height="888"></canvas>
     <button class="back-button" onclick="goBack()">Back</button>
     <video id="gameVideo" muted></video>
   </div>

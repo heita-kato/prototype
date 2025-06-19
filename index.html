@@ -187,6 +187,14 @@
       140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
+    const vibrationPatterns = {
+      grass: [20, 10, 20, 10],
+      mountain: [100, 50, 100],
+      water: [30, 30, 30, 30],
+      sky: [10, 100],
+      building: [80, 30, 80, 30]
+    };
+
     const SPARKLE_LIFETIME = 15;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -242,9 +250,9 @@
       const X = Math.floor(x * 500 / canvas.clientWidth);
       const Y = Math.floor(y * 888 / canvas.clientHeight);
 
-      // 振動させる（対応端末のみ）
-      if (navigator.vibrate) {
-        navigator.vibrate(100); // 100ミリ秒振動
+      const category = getSegmentCategory(segVal);
+      if (navigator.vibrate && category && vibrationPatterns[category]) {
+        navigator.vibrate(vibrationPatterns[category]);
       }
 
       const scaledX = Math.floor(x * 250 / canvas.clientWidth);
@@ -322,6 +330,11 @@
       const { segVal, depVal } = getSegAndDepth(clientX, clientY);
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
+      const category = getSegmentCategory(segVal);
+      if (navigator.vibrate && category && vibrationPatterns[category]) {
+        navigator.vibrate(vibrationPatterns[category]);
+      }
+
       // 現在のセグメント値を記録
       currentLoopSegVal = segVal;
 
@@ -330,12 +343,6 @@
       sound.volume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
       sound.play();
       currentLoopSound = sound;
-
-      //バイブレーション
-      if (navigator.vibrate) {
-        const pattern = getVibrationPattern(depVal); // ← NEW
-        navigator.vibrate(pattern);
-      }
 
       // キラキラ追加（オプション）
       const rect = canvas.getBoundingClientRect();
@@ -356,11 +363,6 @@
         // セグメントが同じなら音量だけ更新
         if (currentLoopSound && !currentLoopSound.paused) {
           currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-          // ← NEW: 強さに応じたバイブ
-          if (navigator.vibrate) {
-            const pattern = getVibrationPattern(depVal);
-            navigator.vibrate(pattern);
-          }
         }
         return;
       }
@@ -433,12 +435,19 @@
       bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
     }
 
-    function getVibrationPattern(depVal) {
-      // 深さに応じて強度を変える（簡易例：間隔や持続時間を増やす）
-      const base = Math.max(10, Math.min(100, depVal / 5)); // 10～100ミリ秒
+    function getSegmentCategory(segVal) {
+      const grassIds = [0, 94, 140];
+      const mountainIds = [16];
+      const waterIds = [21, 26];
+      const skyIds = [2];
+      const buildingIds = [1, 76, 86];
 
-      // 連打パターン（数字が多いほど振動が多く感じられる）
-      return [base, base / 2, base, base / 2];
+      if (grassIds.includes(segVal)) return 'grass';
+      if (mountainIds.includes(segVal)) return 'mountain';
+      if (waterIds.includes(segVal)) return 'water';
+      if (skyIds.includes(segVal)) return 'sky';
+      if (buildingIds.includes(segVal)) return 'building';
+      return null;
     }
   </script>
 </body>

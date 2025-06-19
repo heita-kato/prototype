@@ -7,9 +7,21 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
-    .game-screen { display: none; height: 888px; justify-content: flex-start; align-items: center; flex-direction: column; overflow: hidden; touch-action: none; overscroll-behavior: none; margin-top: 1px;}
+    .game-screen {
+      display: none;
+      min-height: 100vh; /* 可変にする */
+      width: 100%;
+      justify-content: flex-start;
+      align-items: center;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      margin-top: 1px;
+      position: relative;
+    }
     #menu {
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;

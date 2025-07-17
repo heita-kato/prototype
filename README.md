@@ -1,6 +1,6 @@
 # Purpose
 「風景に触れる」をコンセプトとしたゲームです。  
-https://github.com/heita-kato/interactive-sound-sceneを起点にWeb上で遊べるアプリへと進化させました。
+https://github.com/heita-kato/interactive-sound-scene を起点にWeb上で遊べるアプリへと進化させました。   
 環境音と効果音・バイブレーションが共存する音質調整にこだわりました。
 
 # Usage

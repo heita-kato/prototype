@@ -20,59 +20,67 @@
       margin-top: 1px;
       position: relative;
     }
+    #upload-screen {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 20px;
+    }
     #menu {
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-evenly;
-    align-items: center;
-    padding: 20px;
-  }
+      min-height: 100vh;
+      display: none;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      padding: 20px;
+    }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
     canvas {
       border: 1px solid black;
-      width: 100vw;         /* 画面幅の100%に表示 */
-      max-width: 500px;    /* 最大サイズを制限（もとの解像度と同じ） */
-      aspect-ratio: 500 / 888;  /* ← 重要：アスペクト比を固定 */
+      width: 100vw;
+      max-width: 500px;
+      aspect-ratio: 500 / 888;
       display: block;
-      margin: 0 auto;      /* 中央寄せ（任意） */
+      margin: 0 auto;
     }
     video { display: none; }
     .image-button {
-    background: none;
-    border: none;
-    padding: 0;
-    margin: 10px;
-    cursor: pointer;
+      background: none;
+      border: none;
+      padding: 0;
+      margin: 10px;
+      cursor: pointer;
     }
     .image-button img {
-      width: 80vw;         /* スマホ画面幅の80% */
-      max-width: 400px;    /* 大きすぎる画像を抑える */
+      width: 80vw;
+      max-width: 400px;
       height: auto;
-      border-radius: 16px; /* 任意：角丸にする */
+      border-radius: 16px;
       box-shadow: 0 4px 12px rgba(0,0,0,0.4);
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       cursor: pointer;
     }
     .image-button:hover img {
-      transform: scale(1.03); /* 3%拡大 */
-      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5); /* 影を追加 */
+      transform: scale(1.03);
+      box-shadow: 0 10px 20px rgba(0, 0, 0, 0.5);
     }
     .image-button:active img {
-      transform: scale(0.96); /* 押した感 */
+      transform: scale(0.96);
       opacity: 0.8;
     }
     .back-button {
-      border-radius: 12px;       /* 角を丸く */
-      font-weight: bold;         /* 太字に */
+      border-radius: 12px;
+      font-weight: bold;
       margin-top: 1px;
-      padding: 6px 12px;        /* 余白をしっかり */
+      padding: 6px 12px;
       font-size: 16px;
-      background-color: #333;    /* 背景色（お好みで） */
-      color: white;              /* 文字色 */
+      background-color: #333;
+      color: white;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 軽い影 */
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
       transition: all 0.2s ease;
       user-select: none;
       justify-content: flex-start;
@@ -81,10 +89,136 @@
       transform: scale(1.03);
       background-color: #444;
     }
+    .upload-container {
+      width: 90vw;
+      max-width: 500px;
+      background: #f5f5f5;
+      padding: 30px;
+      border-radius: 16px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .upload-container h1 {
+      margin-bottom: 20px;
+      font-size: 28px;
+    }
+    .file-input-wrapper {
+      position: relative;
+      margin: 20px 0;
+    }
+    .file-input-wrapper input[type="file"] {
+      display: none;
+    }
+    .file-input-label {
+      display: block;
+      padding: 15px 30px;
+      background-color: #4CAF50;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-size: 18px;
+    }
+    .file-input-label:hover {
+      background-color: #45a049;
+      transform: scale(1.02);
+    }
+    .file-name {
+      margin-top: 10px;
+      font-size: 14px;
+      color: #666;
+      min-height: 20px;
+    }
+    .sample-button {
+      margin-top: 30px;
+      padding: 12px 24px;
+      background-color: #2196F3;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+    .sample-button:hover {
+      background-color: #0b7dda;
+      transform: scale(1.02);
+    }
+    .error-message {
+      color: #f44336;
+      margin-top: 10px;
+      font-size: 14px;
+      min-height: 20px;
+    }
+    .info-text {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    .loading-overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      z-index: 9999;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+    }
+    .loading-spinner {
+      border: 8px solid #f3f3f3;
+      border-top: 8px solid #3498db;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      animation: spin 1s linear infinite;
+    }
+    .loading-text {
+      color: white;
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
-  <!-- メインメニュー -->
+  <!-- アップロード画面（トップページ） -->
+  <div id="upload-screen">
+    <div class="upload-container">
+      <h1>Views</h1>
+      <p class="info-text">風景動画をアップロードして、音で遊んでみましょう</p>
+      
+      <div class="file-input-wrapper">
+        <input type="file" id="videoUpload" accept="video/*" />
+        <label for="videoUpload" class="file-input-label">動画を選択</label>
+        <div class="file-name" id="fileName"></div>
+      </div>
+      
+      <div class="error-message" id="errorMessage"></div>
+      
+      <div class="info-text">
+        <strong>条件:</strong><br>
+        ・解像度: 1080×1920<br>
+        ・長さ: 1分30秒以内
+      </div>
+      
+      <button class="sample-button" onclick="showSamples()">サンプルを見る</button>
+    </div>
+  </div>
+
+  <!-- ローディング画面 -->
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-spinner"></div>
+    <div class="loading-text">処理中...</div>
+  </div>
+
+  <!-- サンプルメニュー -->
   <div id="menu">
     <h1>Views</h1>
 
@@ -97,8 +231,10 @@
     </button>
 
     <button id="singapBtn" class="image-button">
-      <img src="assets\image\singapore_at_night_2_m.jpg" alt="シンガポール" />
+      <img src="assets/image/singapore_at_night_2_m.jpg" alt="シンガポール" />
     </button>
+
+    <button class="back-button" onclick="goBackToUpload()">戻る</button>
   </div>
 
   <!-- ゲーム画面 -->
@@ -130,7 +266,7 @@
       }
     ];
 
-    // クラスラベル（ADE20K）
+    // ADE20K クラスラベル
     const ADE20K_CLASSES = [
         "wall", "building", "sky", "floor", "tree", "ceiling", "road", "bed",
         "window", "grass", "cabinet", "sidewalk", "person", "earth", "door", "table",
@@ -201,7 +337,7 @@
       water: 200,
       sky: 100,
       building: 800
-    };//軽いものは短く、重いものは長く
+    };
 
     const SPARKLE_LIFETIME = 15;
     const canvas = document.getElementById('gameCanvas');
@@ -211,38 +347,135 @@
     let animationId = null;
     let segmentationMap = [], depthMap = [], sparklePoints = [];
     let vibrationIntervalId = null;
+    let uploadedVideoURL = null;
 
-    async function startGame(index) {
-      document.getElementById('menu').style.display = 'none';
+    // RenderにホストされているAPIのURL（実際のURLに置き換えてください）
+    const API_BASE_URL = 'https://your-api.onrender.com';
+
+    // 動画アップロード処理
+    document.getElementById('videoUpload').addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      document.getElementById('fileName').textContent = file.name;
+      document.getElementById('errorMessage').textContent = '';
+
+      // 動画の検証
+      const videoElement = document.createElement('video');
+      videoElement.preload = 'metadata';
+
+      videoElement.onloadedmetadata = async () => {
+        window.URL.revokeObjectURL(videoElement.src);
+
+        const width = videoElement.videoWidth;
+        const height = videoElement.videoHeight;
+        const duration = videoElement.duration;
+
+        // 解像度と長さのチェック
+        if (width !== 1080 || height !== 1920) {
+          document.getElementById('errorMessage').textContent = 
+            `エラー: 解像度が1080×1920ではありません（現在: ${width}×${height}）`;
+          return;
+        }
+
+        if (duration > 90) {
+          document.getElementById('errorMessage').textContent = 
+            `エラー: 動画の長さが1分30秒を超えています（現在: ${Math.floor(duration)}秒）`;
+          return;
+        }
+
+        // 検証OK - 最初のフレームを抽出してAPIに送信
+        await processVideo(file);
+      };
+
+      videoElement.src = URL.createObjectURL(file);
+    });
+
+    async function processVideo(videoFile) {
+      const loadingOverlay = document.getElementById('loadingOverlay');
+      loadingOverlay.style.display = 'flex';
+
+      try {
+        // 動画の最初のフレームを画像として抽出
+        const firstFrameBlob = await extractFirstFrame(videoFile);
+
+        // APIに画像を送信
+        const formData = new FormData();
+        formData.append('image', firstFrameBlob, 'frame.jpg');
+
+        const response = await fetch(`${API_BASE_URL}/process`, {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          throw new Error('API処理に失敗しました');
+        }
+
+        const result = await response.json();
+        
+        // 結果を保存
+        segmentationMap = result.segmentation;
+        depthMap = result.depth;
+
+        // 動画のURLを保存
+        uploadedVideoURL = URL.createObjectURL(videoFile);
+
+        // ゲーム画面に遷移
+        loadingOverlay.style.display = 'none';
+        startCustomGame();
+
+      } catch (error) {
+        loadingOverlay.style.display = 'none';
+        document.getElementById('errorMessage').textContent = 
+          `エラー: ${error.message}`;
+        console.error('処理エラー:', error);
+      }
+    }
+
+    async function extractFirstFrame(videoFile) {
+      return new Promise((resolve, reject) => {
+        const videoElement = document.createElement('video');
+        const canvasElement = document.createElement('canvas');
+        const ctx = canvasElement.getContext('2d');
+
+        videoElement.onloadeddata = () => {
+          canvasElement.width = videoElement.videoWidth;
+          canvasElement.height = videoElement.videoHeight;
+          ctx.drawImage(videoElement, 0, 0);
+
+          canvasElement.toBlob((blob) => {
+            window.URL.revokeObjectURL(videoElement.src);
+            resolve(blob);
+          }, 'image/jpeg', 0.95);
+        };
+
+        videoElement.onerror = () => {
+          reject(new Error('動画の読み込みに失敗しました'));
+        };
+
+        videoElement.src = URL.createObjectURL(videoFile);
+      });
+    }
+
+    async function startCustomGame() {
+      document.getElementById('upload-screen').style.display = 'none';
       document.getElementById('game').style.display = 'flex';
-
-      // スクロール位置をトップに戻す
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      const config = configs[index];
 
-      // BGM 準備
+      // BGMなし（アップロードされた動画用）
       if (currentBgm) {
         currentBgm.pause();
         currentBgm.currentTime = 0;
+        currentBgm = null;
       }
-      currentBgm = new Audio(config.bgmURL);
-      currentBgm.loop = true;
-      await currentBgm.play().catch(() => {}); // play() は許可後でないと失敗する可能性
 
-      // Video 準備
-      video.src = config.videoSrc;
+      // アップロードされた動画を再生
+      video.src = uploadedVideoURL;
       video.play();
-
-      // データ取得
-      const segRes = await fetch(config.segURL);
-      segmentationMap = (await segRes.json()).map;
-
-      const depthRes = await fetch(config.depURL);
-      depthMap = (await depthRes.json()).map;
 
       sparklePoints = [];
 
-      // 描画開始
       function draw() {
         ctx.drawImage(video, 0, 0, 500, 888);
         drawSparkles();
@@ -251,7 +484,40 @@
       draw();
     }
 
-    //(1)クリック
+    async function startGame(index) {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('game').style.display = 'flex';
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      const config = configs[index];
+
+      if (currentBgm) {
+        currentBgm.pause();
+        currentBgm.currentTime = 0;
+      }
+      currentBgm = new Audio(config.bgmURL);
+      currentBgm.loop = true;
+      await currentBgm.play().catch(() => {});
+
+      video.src = config.videoSrc;
+      video.play();
+
+      const segRes = await fetch(config.segURL);
+      segmentationMap = (await segRes.json()).map;
+
+      const depthRes = await fetch(config.depURL);
+      depthMap = (await depthRes.json()).map;
+
+      sparklePoints = [];
+
+      function draw() {
+        ctx.drawImage(video, 0, 0, 500, 888);
+        drawSparkles();
+        animationId = requestAnimationFrame(draw);
+      }
+      draw();
+    }
+
     canvas.addEventListener('click', (e) => {
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -297,12 +563,10 @@
       sparklePoints = sparklePoints.filter(s => s.lifetime > 0);
     }
 
-    //(2)ドラッグ
     let isDragging = false;
-    let currentLoopSound = null; // ループ再生中の音
+    let currentLoopSound = null;
     let currentLoopSegVal = null;
 
-    // マウス操作
     canvas.addEventListener('mousedown', (e) => {
       isDragging = true;
       startLoopingSound(e.clientX, e.clientY);
@@ -317,7 +581,6 @@
       }
     });
 
-    // タッチ操作（スマホ用）
     canvas.addEventListener('touchstart', (e) => {
       isDragging = true;
       const touch = e.touches[0];
@@ -341,15 +604,10 @@
       const category = getSegmentCategory(segVal);
       const interval = vibrationIntervals[category] || 300;
       if (navigator.vibrate && category && vibrationPatterns[category]) {
-        // 振動を定期的に実行
-        clearInterval(vibrationIntervalId); // 前の振動ループを止める
-        // 深度 depVal をもとに振動の強さ（duration）をスケーリング
+        clearInterval(vibrationIntervalId);
         const intensityScale = Math.max(0.1, Math.min(1.0, depVal / 1000));
-
-        // 元のパターンを depVal に応じてスケーリング
         const basePattern = vibrationPatterns[category];
         const scaledPattern = basePattern.map(ms => Math.round(ms * intensityScale));
-
         const interval = vibrationIntervals[category] || 300;
 
         vibrationIntervalId = setInterval(() => {
@@ -357,7 +615,6 @@
         }, interval);
       }
 
-      // 現在のセグメント値を記録
       currentLoopSegVal = segVal;
 
       const sound = segDrag[segVal].cloneNode();
@@ -366,7 +623,6 @@
       sound.play();
       currentLoopSound = sound;
 
-      // キラキラ追加（オプション）
       const rect = canvas.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
@@ -377,28 +633,24 @@
 
     function updateLoopingSound(clientX, clientY) {
       const { segVal, depVal } = getSegAndDepth(clientX, clientY);
-      //currentLoopSegVal = segVal;
-      //console.log("Current:", currentLoopSegVal, "New:", segVal);  //テスト
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
       if (segVal === currentLoopSegVal) {
-        // セグメントが同じなら音量だけ更新
         if (currentLoopSound && !currentLoopSound.paused) {
           currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
         }
         return;
       }
 
-      // セグメントが変わったら、今の音を止めて新しい音に切り替える
       if (currentLoopSound) {
         currentLoopSound.pause();
         currentLoopSound.currentTime = 0;
         currentLoopSound = null;
       }
-      currentLoopSegVal = null; // stopLoopingSoundのisDraggingがない版
-      clearInterval(vibrationIntervalId); // 振動の再設定が必要なので一度クリア
+      currentLoopSegVal = null;
+      clearInterval(vibrationIntervalId);
       startLoopingSound(clientX, clientY);
-      console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);  //テスト
+      console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);
     }
 
     function stopLoopingSound() {
@@ -408,8 +660,8 @@
         currentLoopSound.currentTime = 0;
         currentLoopSound = null;
       }
-      clearInterval(vibrationIntervalId); // 振動も止める
-      currentLoopSegVal = null; // ← 忘れずにリセット
+      clearInterval(vibrationIntervalId);
+      currentLoopSegVal = null;
     }
 
     function getSegAndDepth(clientX, clientY) {
@@ -426,10 +678,20 @@
       return { segVal, depVal };
     }
 
-
     function goBack() {
       document.getElementById('game').style.display = 'none';
-      document.getElementById('menu').style.display = 'flex';
+      
+      // アップロード動画から戻る場合はアップロード画面へ
+      if (uploadedVideoURL) {
+        document.getElementById('upload-screen').style.display = 'flex';
+        if (uploadedVideoURL) {
+          URL.revokeObjectURL(uploadedVideoURL);
+          uploadedVideoURL = null;
+        }
+      } else {
+        // サンプルから戻る場合はメニューへ
+        document.getElementById('menu').style.display = 'flex';
+      }
 
       if (currentBgm) {
         currentBgm.pause();
@@ -442,8 +704,20 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
     }
 
+    function showSamples() {
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
+    }
+
+    function goBackToUpload() {
+      document.getElementById('menu').style.display = 'none';
+      document.getElementById('upload-screen').style.display = 'flex';
+    }
+
     window.startGame = startGame;
     window.goBack = goBack;
+    window.showSamples = showSamples;
+    window.goBackToUpload = goBackToUpload;
 
     document.getElementById('swissBtn').addEventListener('click', () => startGame(0));
     document.getElementById('brazilBtn').addEventListener('click', () => startGame(1));
@@ -455,11 +729,12 @@
     });
 
     function unlockAudio() {
-      bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
+      Object.values(segSounds).flat().forEach(s => s.play().then(() => s.pause()).catch(() => {}));
+      Object.values(segDrag).forEach(s => s.play().then(() => s.pause()).catch(() => {}));
     }
 
     function getSegmentCategory(segVal) {
-      const grassIds = [13];//earth
+      const grassIds = [13];
       const mountainIds = [16];
       const waterIds = [21, 26];
       const skyIds = [2];

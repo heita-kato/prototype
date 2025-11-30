@@ -7,9 +7,21 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { background: #ffffff; color: rgb(46, 44, 44); font-family: sans-serif; text-align: center; }
-    #menu, .game-screen { display: none; height: 100vh; justify-content: center; align-items: center; flex-direction: column;}
+    .game-screen {
+      display: none;
+      min-height: 100vh;
+      width: 100%;
+      justify-content: flex-start;
+      align-items: center;
+      flex-direction: column;
+      overflow: hidden;
+      touch-action: none;
+      overscroll-behavior: none;
+      margin-top: 1px;
+      position: relative;
+    }
     #menu {
-    height: 100vh;
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
     justify-content: space-evenly;
@@ -17,7 +29,14 @@
     padding: 20px;
   }
     button { margin: 10px; padding: 20px; font-size: 20px; cursor: pointer; }
-    canvas { border: 1px solid rgb(255, 255, 255); width: 100vw; height: auto; max-height: 100vh; }
+    canvas {
+      border: 1px solid black;
+      width: 100vw;         /* 画面幅の100%に表示 */
+      max-width: 500px;    /* 最大サイズを制限（もとの解像度と同じ） */
+      aspect-ratio: 500 / 888;  /* ← 重要：アスペクト比を固定 */
+      display: block;
+      margin: 0 auto;      /* 中央寄せ（任意） */
+    }
     video { display: none; }
     .image-button {
     background: none;
@@ -46,7 +65,8 @@
     .back-button {
       border-radius: 12px;       /* 角を丸く */
       font-weight: bold;         /* 太字に */
-      padding: 12px 24px;        /* 余白をしっかり */
+      margin-top: 1px;
+      padding: 6px 12px;        /* 余白をしっかり */
       font-size: 16px;
       background-color: #333;    /* 背景色（お好みで） */
       color: white;              /* 文字色 */
@@ -54,6 +74,8 @@
       cursor: pointer;
       box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3); /* 軽い影 */
       transition: all 0.2s ease;
+      user-select: none;
+      justify-content: flex-start;
     }
     .back-button:hover {
       transform: scale(1.03);
@@ -165,19 +187,37 @@
       140: new Audio('assets/sound/grass_sound.mp3'),
     };
 
+    const vibrationPatterns = {
+      grass: [10, 5, 10, 5],
+      mountain: [100, 50, 100],
+      water: [20, 20, 20, 20],
+      sky: [5, 50],
+      building: [10, 20, 40, 80]
+    };
+
+    const vibrationIntervals = {
+      grass: 600,
+      mountain: 1000,
+      water: 200,
+      sky: 100,
+      building: 800
+    };//軽いものは短く、重いものは長く
+
     const SPARKLE_LIFETIME = 15;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('gameVideo');
     let currentBgm = null;
     let animationId = null;
-
     let segmentationMap = [], depthMap = [], sparklePoints = [];
+    let vibrationIntervalId = null;
 
     async function startGame(index) {
       document.getElementById('menu').style.display = 'none';
       document.getElementById('game').style.display = 'flex';
 
+      // スクロール位置をトップに戻す
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       const config = configs[index];
 
       // BGM 準備
@@ -218,17 +258,16 @@
       const y = e.clientY - rect.top;
       const X = Math.floor(x * 500 / canvas.clientWidth);
       const Y = Math.floor(y * 888 / canvas.clientHeight);
-
-      // 振動させる（対応端末のみ）
-      if (navigator.vibrate) {
-        navigator.vibrate(100); // 100ミリ秒振動
-      }
-
       const scaledX = Math.floor(x * 250 / canvas.clientWidth);
       const scaledY = Math.floor(y * 444 / canvas.clientHeight);
       const segVal = segmentationMap[scaledY]?.[scaledX];
       const depVal = depthMap[scaledY]?.[scaledX];
       if (segVal == null || depVal == null) return;
+
+      const category = getSegmentCategory(segVal);
+      if (navigator.vibrate && category && vibrationPatterns[category]) {
+        navigator.vibrate(vibrationPatterns[category]);
+      }
 
       sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
 
@@ -299,12 +338,31 @@
       const { segVal, depVal } = getSegAndDepth(clientX, clientY);
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
+      const category = getSegmentCategory(segVal);
+      const interval = vibrationIntervals[category] || 300;
+      if (navigator.vibrate && category && vibrationPatterns[category]) {
+        // 振動を定期的に実行
+        clearInterval(vibrationIntervalId); // 前の振動ループを止める
+        // 深度 depVal をもとに振動の強さ（duration）をスケーリング
+        const intensityScale = Math.max(0.1, Math.min(1.0, depVal / 1000));
+
+        // 元のパターンを depVal に応じてスケーリング
+        const basePattern = vibrationPatterns[category];
+        const scaledPattern = basePattern.map(ms => Math.round(ms * intensityScale));
+
+        const interval = vibrationIntervals[category] || 300;
+
+        vibrationIntervalId = setInterval(() => {
+          navigator.vibrate(scaledPattern);
+        }, interval);
+      }
+
       // 現在のセグメント値を記録
       currentLoopSegVal = segVal;
 
       const sound = segDrag[segVal].cloneNode();
       sound.loop = true;
-      sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      sound.volume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
       sound.play();
       currentLoopSound = sound;
 
@@ -338,7 +396,7 @@
         currentLoopSound = null;
       }
       currentLoopSegVal = null; // stopLoopingSoundのisDraggingがない版
-
+      clearInterval(vibrationIntervalId); // 振動の再設定が必要なので一度クリア
       startLoopingSound(clientX, clientY);
       console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);  //テスト
     }
@@ -350,6 +408,7 @@
         currentLoopSound.currentTime = 0;
         currentLoopSound = null;
       }
+      clearInterval(vibrationIntervalId); // 振動も止める
       currentLoopSegVal = null; // ← 忘れずにリセット
     }
 
@@ -397,6 +456,21 @@
 
     function unlockAudio() {
       bgms.forEach(b => b.play().then(() => b.pause()).catch(() => {}));
+    }
+
+    function getSegmentCategory(segVal) {
+      const grassIds = [13];//earth
+      const mountainIds = [16];
+      const waterIds = [21, 26];
+      const skyIds = [2];
+      const buildingIds = [1, 76, 86];
+
+      if (grassIds.includes(segVal)) return 'grass';
+      if (mountainIds.includes(segVal)) return 'mountain';
+      if (waterIds.includes(segVal)) return 'water';
+      if (skyIds.includes(segVal)) return 'sky';
+      if (buildingIds.includes(segVal)) return 'building';
+      return null;
     }
   </script>
 </body>

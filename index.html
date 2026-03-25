@@ -340,14 +340,20 @@
     };
 
     const SPARKLE_LIFETIME = 15;
+    const RIPPLE_LIFETIME = 28;
+    const RIPPLE_MAX_RADIUS = 90;
+    const SHAKE_DURATION = 16;
+    const SHAKE_AMPLITUDE = 6;
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('gameVideo');
+    const gameScreen = document.getElementById('game');
     let currentBgm = null;
     let animationId = null;
-    let segmentationMap = [], depthMap = [], sparklePoints = [];
+    let segmentationMap = [], depthMap = [], sparklePoints = [], rippleEffects = [];
     let vibrationIntervalId = null;
     let uploadedVideoURL = null;
+    let shakeFramesLeft = 0;
 
     // RenderにホストされているAPIのURL（実際のURLに置き換えてください）
     const API_BASE_URL = 'https://prototype-backend-yc2s.onrender.com';
@@ -475,10 +481,15 @@
       video.play();
 
       sparklePoints = [];
+      rippleEffects = [];
+      shakeFramesLeft = 0;
+      gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
         ctx.drawImage(video, 0, 0, 500, 888);
         drawSparkles();
+        drawRipples();
+        updateScreenShake();
         animationId = requestAnimationFrame(draw);
       }
       draw();
@@ -509,25 +520,26 @@
       depthMap = (await depthRes.json()).map;
 
       sparklePoints = [];
+      rippleEffects = [];
+      shakeFramesLeft = 0;
+      gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
         ctx.drawImage(video, 0, 0, 500, 888);
         drawSparkles();
+        drawRipples();
+        updateScreenShake();
         animationId = requestAnimationFrame(draw);
       }
       draw();
     }
 
     canvas.addEventListener('click', (e) => {
-      const rect = canvas.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const X = Math.floor(x * 500 / canvas.clientWidth);
-      const Y = Math.floor(y * 888 / canvas.clientHeight);
-      const scaledX = Math.floor(x * 250 / canvas.clientWidth);
-      const scaledY = Math.floor(y * 444 / canvas.clientHeight);
-      const segVal = segmentationMap[scaledY]?.[scaledX];
-      const depVal = depthMap[scaledY]?.[scaledX];
+      handleTap(e.clientX, e.clientY);
+    });
+
+    function handleTap(clientX, clientY) {
+      const { segVal, depVal, X, Y } = getSegAndDepth(clientX, clientY, true);
       if (segVal == null || depVal == null) return;
 
       const category = getSegmentCategory(segVal);
@@ -537,6 +549,17 @@
 
       sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
 
+      if (category === 'water') {
+        rippleEffects.push({
+          pos: [X, Y],
+          lifetime: RIPPLE_LIFETIME
+        });
+      }
+
+      if (category === 'grass') {
+        shakeFramesLeft = SHAKE_DURATION;
+      }
+
       if (segVal in segSounds) {
         const soundArray = segSounds[segVal];
         const randomIndex = Math.floor(Math.random() * soundArray.length);
@@ -544,7 +567,43 @@
         sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
         sound.play();
       }
-    });
+    }
+
+    function drawRipples() {
+      for (const ripple of rippleEffects) {
+        const progress = 1 - (ripple.lifetime / RIPPLE_LIFETIME);
+        const radius = progress * RIPPLE_MAX_RADIUS;
+        const alpha = (1 - progress) * 0.55;
+
+        ctx.beginPath();
+        ctx.arc(ripple.pos[0], ripple.pos[1], radius, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.lineWidth = 3;
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.arc(ripple.pos[0], ripple.pos[1], radius * 0.7, 0, Math.PI * 2);
+        ctx.strokeStyle = `rgba(255,255,255,${alpha * 0.6})`;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+
+        ripple.lifetime--;
+      }
+      rippleEffects = rippleEffects.filter(r => r.lifetime > 0);
+    }
+
+    function updateScreenShake() {
+      if (shakeFramesLeft <= 0) {
+        gameScreen.style.transform = 'translateY(0px)';
+        return;
+      }
+
+      const progress = shakeFramesLeft / SHAKE_DURATION;
+      const offset = Math.sin((SHAKE_DURATION - shakeFramesLeft) * 1.8) * SHAKE_AMPLITUDE * progress;
+      gameScreen.style.transform = `translateY(${offset.toFixed(2)}px)`;
+      shakeFramesLeft--;
+    }
+
     
     function drawSparkles() {
       for (const sparkle of sparklePoints) {
@@ -566,6 +625,8 @@
     let isDragging = false;
     let currentLoopSound = null;
     let currentLoopSegVal = null;
+    let touchStartPos = null;
+    let touchMoved = false;
 
     canvas.addEventListener('mousedown', (e) => {
       isDragging = true;
@@ -584,25 +645,45 @@
     canvas.addEventListener('touchstart', (e) => {
       isDragging = true;
       const touch = e.touches[0];
+      touchStartPos = { x: touch.clientX, y: touch.clientY };
+      touchMoved = false;
       startLoopingSound(touch.clientX, touch.clientY);
     });
 
     canvas.addEventListener('touchmove', (e) => {
       if (isDragging) {
         const touch = e.touches[0];
+        if (touchStartPos) {
+          const dx = touch.clientX - touchStartPos.x;
+          const dy = touch.clientY - touchStartPos.y;
+          if ((dx * dx + dy * dy) > 64) {
+            touchMoved = true;
+          }
+        }
         updateLoopingSound(touch.clientX, touch.clientY);
       }
     });
 
-    canvas.addEventListener('touchend', stopLoopingSound);
-    canvas.addEventListener('touchcancel', stopLoopingSound);
+    canvas.addEventListener('touchend', (e) => {
+      if (!touchMoved && e.changedTouches && e.changedTouches.length > 0) {
+        const touch = e.changedTouches[0];
+        handleTap(touch.clientX, touch.clientY);
+      }
+      touchStartPos = null;
+      touchMoved = false;
+      stopLoopingSound();
+    });
+    canvas.addEventListener('touchcancel', () => {
+      touchStartPos = null;
+      touchMoved = false;
+      stopLoopingSound();
+    });
 
     function startLoopingSound(clientX, clientY) {
       const { segVal, depVal } = getSegAndDepth(clientX, clientY);
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
 
       const category = getSegmentCategory(segVal);
-      const interval = vibrationIntervals[category] || 300;
       if (navigator.vibrate && category && vibrationPatterns[category]) {
         clearInterval(vibrationIntervalId);
         const intensityScale = Math.max(0.1, Math.min(1.0, depVal / 1000));
@@ -664,16 +745,22 @@
       currentLoopSegVal = null;
     }
 
-    function getSegAndDepth(clientX, clientY) {
+    function getSegAndDepth(clientX, clientY, includeCanvasPos = false) {
       const rect = canvas.getBoundingClientRect();
       const x = clientX - rect.left;
       const y = clientY - rect.top;
 
+      const X = Math.floor(x * 500 / canvas.clientWidth);
+      const Y = Math.floor(y * 888 / canvas.clientHeight);
       const scaledX = Math.floor(x * 250 / canvas.clientWidth);
       const scaledY = Math.floor(y * 444 / canvas.clientHeight);
 
       const segVal = segmentationMap[scaledY]?.[scaledX];
       const depVal = depthMap[scaledY]?.[scaledX];
+
+      if (includeCanvasPos) {
+        return { segVal, depVal, X, Y };
+      }
 
       return { segVal, depVal };
     }
@@ -702,6 +789,9 @@
       video.pause();
       video.currentTime = 0;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
+      gameScreen.style.transform = 'translateY(0px)';
+      shakeFramesLeft = 0;
+      rippleEffects = [];
     }
 
     function showSamples() {

@@ -350,6 +350,7 @@
     const SKY_SHADOW_HALF_WIDTH = 840;
     const SKY_SHADOW_LIFETIME = 500;
     const DRAG_MASK_FADE_SPEED = 0.08;
+    const DRAG_CROSSFADE_STEP = 0.06;
     const WEBGL_MAX_RIPPLES = 8;
     const WEBGL_RIPPLE_DURATION = 2.4;
     const BGM_VOLUME = 0.10; // 0.0 - 1.0
@@ -517,9 +518,14 @@
       dragMaskActive = false;
       dragMaskStrength = 0;
       webglRippleWaves = [];
+      currentLoopSound = null;
+      currentLoopSegVal = null;
+      currentLoopTargetVolume = 0;
+      fadingLoopSounds = [];
       gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
+        updateLoopSoundCrossfade();
         updateDragMaskTransition();
         if (dragMaskStrength > 0.001 && dragFocusPoint) {
           drawDragFocusFrame();
@@ -577,9 +583,14 @@
       dragMaskActive = false;
       dragMaskStrength = 0;
       webglRippleWaves = [];
+      currentLoopSound = null;
+      currentLoopSegVal = null;
+      currentLoopTargetVolume = 0;
+      fadingLoopSounds = [];
       gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
+        updateLoopSoundCrossfade();
         updateDragMaskTransition();
         if (dragMaskStrength > 0.001 && dragFocusPoint) {
           drawDragFocusFrame();
@@ -601,6 +612,7 @@
     }
 
     canvas.addEventListener('click', (e) => {
+      if (Date.now() < suppressClickUntil) return;
       handleTap(e.clientX, e.clientY);
     });
 
@@ -1029,8 +1041,11 @@
     let isDragging = false;
     let currentLoopSound = null;
     let currentLoopSegVal = null;
+    let currentLoopTargetVolume = 0;
+    let fadingLoopSounds = [];
     let touchStartPos = null;
     let touchMoved = false;
+    let suppressClickUntil = 0;
 
     canvas.addEventListener('mousedown', (e) => {
       isDragging = true;
@@ -1074,6 +1089,7 @@
     canvas.addEventListener('touchend', (e) => {
       if (!touchMoved && e.changedTouches && e.changedTouches.length > 0) {
         const touch = e.changedTouches[0];
+        suppressClickUntil = Date.now() + 450;
         handleTap(touch.clientX, touch.clientY);
       }
       touchStartPos = null;
@@ -1085,6 +1101,43 @@
       touchMoved = false;
       stopLoopingSound();
     });
+
+    function createLoopSound(segVal, targetVolume) {
+      const sound = segDrag[segVal].cloneNode();
+      sound.loop = true;
+      sound.volume = 0;
+      sound.play();
+      currentLoopSound = sound;
+      currentLoopSegVal = segVal;
+      currentLoopTargetVolume = Math.max(0, Math.min(1, targetVolume));
+    }
+
+    function enqueueFadeOut(sound, fadeStep = DRAG_CROSSFADE_STEP) {
+      if (!sound) return;
+      fadingLoopSounds.push({ sound, fadeStep });
+    }
+
+    function updateLoopSoundCrossfade() {
+      if (currentLoopSound && !currentLoopSound.paused) {
+        const delta = currentLoopTargetVolume - currentLoopSound.volume;
+        if (Math.abs(delta) <= DRAG_CROSSFADE_STEP) {
+          currentLoopSound.volume = currentLoopTargetVolume;
+        } else {
+          currentLoopSound.volume += Math.sign(delta) * DRAG_CROSSFADE_STEP;
+        }
+      }
+
+      for (const item of fadingLoopSounds) {
+        if (!item.sound || item.sound.paused) continue;
+        item.sound.volume = Math.max(0, item.sound.volume - item.fadeStep);
+        if (item.sound.volume <= 0.001) {
+          item.sound.pause();
+          item.sound.currentTime = 0;
+        }
+      }
+
+      fadingLoopSounds = fadingLoopSounds.filter(item => item.sound && !item.sound.paused);
+    }
 
     function startLoopingSound(clientX, clientY) {
       const { segVal, depVal, X, Y } = getSegAndDepth(clientX, clientY, true);
@@ -1114,14 +1167,15 @@
         }, interval);
       }
 
-      currentLoopSegVal = segVal;
-
-      const sound = segDrag[segVal].cloneNode();
-      sound.loop = true;
       const dynamicVolume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-      sound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
-      sound.play();
-      currentLoopSound = sound;
+      const targetVolume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
+
+      if (currentLoopSound && currentLoopSegVal === segVal) {
+        currentLoopTargetVolume = targetVolume;
+      } else {
+        enqueueFadeOut(currentLoopSound);
+        createLoopSound(segVal, targetVolume);
+      }
       sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
     }
 
@@ -1143,17 +1197,15 @@
       if (segVal === currentLoopSegVal) {
         if (currentLoopSound && !currentLoopSound.paused) {
           const dynamicVolume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
-          currentLoopSound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
+          currentLoopTargetVolume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
         }
         return;
       }
 
-      if (currentLoopSound) {
-        currentLoopSound.pause();
-        currentLoopSound.currentTime = 0;
-        currentLoopSound = null;
-      }
+      enqueueFadeOut(currentLoopSound);
+      currentLoopSound = null;
       currentLoopSegVal = null;
+      currentLoopTargetVolume = 0;
       clearInterval(vibrationIntervalId);
       startLoopingSound(clientX, clientY);
       console.log("Seg:", segVal, "|", ADE20K_CLASSES[segVal]);
@@ -1162,13 +1214,11 @@
     function stopLoopingSound() {
       isDragging = false;
       dragMaskActive = false;
-      if (currentLoopSound) {
-        currentLoopSound.pause();
-        currentLoopSound.currentTime = 0;
-        currentLoopSound = null;
-      }
+      enqueueFadeOut(currentLoopSound, DRAG_CROSSFADE_STEP * 1.6);
+      currentLoopSound = null;
       clearInterval(vibrationIntervalId);
       currentLoopSegVal = null;
+      currentLoopTargetVolume = 0;
     }
 
     function getSegAndDepth(clientX, clientY, includeCanvasPos = false) {
@@ -1227,6 +1277,20 @@
       dragMaskActive = false;
       dragMaskStrength = 0;
       webglRippleWaves = [];
+      if (currentLoopSound) {
+        currentLoopSound.pause();
+        currentLoopSound.currentTime = 0;
+      }
+      currentLoopSound = null;
+      currentLoopSegVal = null;
+      currentLoopTargetVolume = 0;
+      fadingLoopSounds.forEach(item => {
+        if (item.sound) {
+          item.sound.pause();
+          item.sound.currentTime = 0;
+        }
+      });
+      fadingLoopSounds = [];
     }
 
     function showSamples() {

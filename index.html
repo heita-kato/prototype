@@ -344,6 +344,8 @@
     const RIPPLE_MAX_RADIUS = 90;
     const SHAKE_DURATION = 16;
     const SHAKE_AMPLITUDE = 6;
+    const BGM_VOLUME = 0.45; // 0.0 - 1.0
+    const SFX_VOLUME = 0.75; // 0.0 - 1.0
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('gameVideo');
@@ -508,6 +510,7 @@
       }
       currentBgm = new Audio(config.bgmURL);
       currentBgm.loop = true;
+      currentBgm.volume = Math.max(0, Math.min(1, BGM_VOLUME));
       await currentBgm.play().catch(() => {});
 
       video.src = config.videoSrc;
@@ -564,7 +567,8 @@
         const soundArray = segSounds[segVal];
         const randomIndex = Math.floor(Math.random() * soundArray.length);
         const sound = soundArray[randomIndex].cloneNode();
-        sound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        const dynamicVolume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        sound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
         sound.play();
       }
     }
@@ -700,7 +704,8 @@
 
       const sound = segDrag[segVal].cloneNode();
       sound.loop = true;
-      sound.volume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      const dynamicVolume = segVal === 2 ? 0.5 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+      sound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
       sound.play();
       currentLoopSound = sound;
 
@@ -718,7 +723,8 @@
 
       if (segVal === currentLoopSegVal) {
         if (currentLoopSound && !currentLoopSound.paused) {
-          currentLoopSound.volume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+          const dynamicVolume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+          currentLoopSound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
         }
         return;
       }

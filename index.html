@@ -344,8 +344,8 @@
     const RIPPLE_MAX_RADIUS = 90;
     const SHAKE_DURATION = 16;
     const SHAKE_AMPLITUDE = 6;
-    const BGM_VOLUME = 0.45; // 0.0 - 1.0
-    const SFX_VOLUME = 0.75; // 0.0 - 1.0
+    const BGM_VOLUME = 0.25; // 0.0 - 1.0
+    const SFX_VOLUME = 1.0; // 0.0 - 1.0
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const video = document.getElementById('gameVideo');
@@ -567,7 +567,7 @@
         const soundArray = segSounds[segVal];
         const randomIndex = Math.floor(Math.random() * soundArray.length);
         const sound = soundArray[randomIndex].cloneNode();
-        const dynamicVolume = segVal === 2 ? 1.0 : Math.max(0.1, Math.min(1.0, depVal / 1000));
+        const dynamicVolume = segVal === 2 ? 0.3 : Math.max(0.1, Math.min(1.0, depVal / 1000));
         sound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
         sound.play();
       }

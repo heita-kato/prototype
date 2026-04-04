@@ -341,10 +341,18 @@
 
     const SPARKLE_LIFETIME = 15;
     const RIPPLE_LIFETIME = 28;
-    const RIPPLE_MAX_RADIUS = 90;
+    const RIPPLE_MAX_RADIUS = 720;
     const SHAKE_DURATION = 16;
     const SHAKE_AMPLITUDE = 6;
-    const BGM_VOLUME = 0.25; // 0.0 - 1.0
+    const MOUNTAIN_SHAKE_DURATION = 24;
+    const MOUNTAIN_SHAKE_AMPLITUDE = 2.2;
+    const DRAG_FOCUS_RADIUS = 130;
+    const SKY_SHADOW_HALF_WIDTH = 840;
+    const SKY_SHADOW_LIFETIME = 500;
+    const DRAG_MASK_FADE_SPEED = 0.08;
+    const WEBGL_MAX_RIPPLES = 8;
+    const WEBGL_RIPPLE_DURATION = 2.4;
+    const BGM_VOLUME = 0.10; // 0.0 - 1.0
     const SFX_VOLUME = 1.0; // 0.0 - 1.0
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -353,9 +361,24 @@
     let currentBgm = null;
     let animationId = null;
     let segmentationMap = [], depthMap = [], sparklePoints = [], rippleEffects = [];
+    let skyShadowEffects = [], fadeFlashEffects = [], burstEffects = [];
+    let dragTrailPoints = [];
     let vibrationIntervalId = null;
     let uploadedVideoURL = null;
     let shakeFramesLeft = 0;
+    let mountainShakeFramesLeft = 0;
+    let dragFocusPoint = null;
+    let dragMaskActive = false;
+    let dragMaskStrength = 0;
+    let webglCanvas = null;
+    let gl = null;
+    let webglProgram = null;
+    let webglTexture = null;
+    let webglVertexBuffer = null;
+    let webglRippleWaves = [];
+    let webglUniforms = null;
+
+    initWaterWebGL();
 
     // RenderにホストされているAPIのURL（実際のURLに置き換えてください）
     const API_BASE_URL = 'https://prototype-backend-yc2s.onrender.com';
@@ -484,13 +507,33 @@
 
       sparklePoints = [];
       rippleEffects = [];
+      skyShadowEffects = [];
+      fadeFlashEffects = [];
+      burstEffects = [];
+      dragTrailPoints = [];
       shakeFramesLeft = 0;
+      mountainShakeFramesLeft = 0;
+      dragFocusPoint = null;
+      dragMaskActive = false;
+      dragMaskStrength = 0;
+      webglRippleWaves = [];
       gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
-        ctx.drawImage(video, 0, 0, 500, 888);
-        drawSparkles();
-        drawRipples();
+        updateDragMaskTransition();
+        if (dragMaskStrength > 0.001 && dragFocusPoint) {
+          drawDragFocusFrame();
+          drawDragTrailSparkles();
+        } else {
+          const mountainOffsetX = getMountainShakeOffsetX();
+          drawBaseFrame(mountainOffsetX);
+          drawSkyShadows();
+          drawSparkles();
+          drawRipples();
+          drawFadeFlash();
+          drawBurstSparkles();
+          drawDragTrailSparkles();
+        }
         updateScreenShake();
         animationId = requestAnimationFrame(draw);
       }
@@ -524,13 +567,33 @@
 
       sparklePoints = [];
       rippleEffects = [];
+      skyShadowEffects = [];
+      fadeFlashEffects = [];
+      burstEffects = [];
+      dragTrailPoints = [];
       shakeFramesLeft = 0;
+      mountainShakeFramesLeft = 0;
+      dragFocusPoint = null;
+      dragMaskActive = false;
+      dragMaskStrength = 0;
+      webglRippleWaves = [];
       gameScreen.style.transform = 'translateY(0px)';
 
       function draw() {
-        ctx.drawImage(video, 0, 0, 500, 888);
-        drawSparkles();
-        drawRipples();
+        updateDragMaskTransition();
+        if (dragMaskStrength > 0.001 && dragFocusPoint) {
+          drawDragFocusFrame();
+          drawDragTrailSparkles();
+        } else {
+          const mountainOffsetX = getMountainShakeOffsetX();
+          drawBaseFrame(mountainOffsetX);
+          drawSkyShadows();
+          drawSparkles();
+          drawRipples();
+          drawFadeFlash();
+          drawBurstSparkles();
+          drawDragTrailSparkles();
+        }
         updateScreenShake();
         animationId = requestAnimationFrame(draw);
       }
@@ -550,12 +613,50 @@
         navigator.vibrate(vibrationPatterns[category]);
       }
 
-      sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
-
       if (category === 'water') {
         rippleEffects.push({
           pos: [X, Y],
           lifetime: RIPPLE_LIFETIME
+        });
+        addWebglRipple(X, Y, depVal);
+      }
+
+      if (category === 'sky') {
+        skyShadowEffects.push({
+          y: Y,
+          lifetime: SKY_SHADOW_LIFETIME,
+          maxLifetime: SKY_SHADOW_LIFETIME
+        });
+      }
+
+      if (category === 'mountain') {
+        mountainShakeFramesLeft = MOUNTAIN_SHAKE_DURATION;
+      }
+
+      if (category === 'boat' || category === 'building') {
+        fadeFlashEffects.push({
+          lifetime: 60
+        });
+      }
+
+      if (category === 'land' || category === 'earth') {
+        const particles = [];
+        const count = 16 + Math.floor(Math.random() * 14);
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 0.8 + Math.random() * 3.2;
+          particles.push({
+            x: X,
+            y: Y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - Math.random() * 0.9,
+            size: 0.8 + Math.random() * 2.8,
+            life: 18 + Math.floor(Math.random() * 16),
+            maxLife: 18 + Math.floor(Math.random() * 16)
+          });
+        }
+        burstEffects.push({
+          particles
         });
       }
 
@@ -577,7 +678,7 @@
       for (const ripple of rippleEffects) {
         const progress = 1 - (ripple.lifetime / RIPPLE_LIFETIME);
         const radius = progress * RIPPLE_MAX_RADIUS;
-        const alpha = (1 - progress) * 0.55;
+        const alpha = (1 - progress) * 0.10;
 
         ctx.beginPath();
         ctx.arc(ripple.pos[0], ripple.pos[1], radius, 0, Math.PI * 2);
@@ -594,6 +695,305 @@
         ripple.lifetime--;
       }
       rippleEffects = rippleEffects.filter(r => r.lifetime > 0);
+    }
+
+    function drawSkyShadows() {
+      for (const shadow of skyShadowEffects) {
+        const progress = 1 - (shadow.lifetime / shadow.maxLifetime);
+        const travel = 500 + (SKY_SHADOW_HALF_WIDTH * 2);
+        const x = -SKY_SHADOW_HALF_WIDTH + progress * travel;
+        const alpha = (1 - Math.abs(progress - 0.5) * 2) * 0.22;
+
+        ctx.save();
+        ctx.translate(x, 0);
+        const grad = ctx.createLinearGradient(-SKY_SHADOW_HALF_WIDTH, 0, SKY_SHADOW_HALF_WIDTH, 0);
+        grad.addColorStop(0, 'rgba(0,0,0,0)');
+        grad.addColorStop(0.25, `rgba(0,0,0,${(alpha * 0.6).toFixed(3)})`);
+        grad.addColorStop(0.5, `rgba(0,0,0,${alpha.toFixed(3)})`);
+        grad.addColorStop(0.75, `rgba(0,0,0,${(alpha * 0.6).toFixed(3)})`);
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+        ctx.fillStyle = grad;
+        ctx.fillRect(-SKY_SHADOW_HALF_WIDTH, 0, SKY_SHADOW_HALF_WIDTH * 2, 888);
+        ctx.restore();
+
+        shadow.lifetime--;
+      }
+      skyShadowEffects = skyShadowEffects.filter(s => s.lifetime > 0);
+    }
+
+    function drawFadeFlash() {
+      for (const flash of fadeFlashEffects) {
+        const progress = 1 - (flash.lifetime / 60);
+        const alpha = Math.sin(Math.PI * progress) * 0.12;
+        ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
+        ctx.fillRect(0, 0, 500, 888);
+        flash.lifetime--;
+      }
+      fadeFlashEffects = fadeFlashEffects.filter(f => f.lifetime > 0);
+    }
+
+    function drawBurstSparkles() {
+      for (const burst of burstEffects) {
+        for (const p of burst.particles) {
+          const alpha = Math.max(0, p.life / p.maxLife);
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vx *= 0.98;
+          p.vy = (p.vy * 0.98) + 0.03;
+          p.size *= 0.993;
+          ctx.beginPath();
+          ctx.fillStyle = `rgba(255,255,220,${(alpha * 0.95).toFixed(3)})`;
+          ctx.arc(p.x, p.y, Math.max(0.4, p.size), 0, Math.PI * 2);
+          ctx.fill();
+          p.life--;
+        }
+        burst.particles = burst.particles.filter(p => p.life > 0);
+      }
+      burstEffects = burstEffects.filter(b => b.particles.length > 0);
+    }
+
+    function drawDragTrailSparkles() {
+      for (const trail of dragTrailPoints) {
+        const alpha = trail.lifetime / trail.maxLifetime;
+        ctx.beginPath();
+        ctx.fillStyle = `rgba(255,255,235,${(alpha * 0.8).toFixed(3)})`;
+        ctx.arc(trail.x, trail.y, trail.size, 0, Math.PI * 2);
+        ctx.fill();
+        trail.lifetime--;
+      }
+      dragTrailPoints = dragTrailPoints.filter(t => t.lifetime > 0);
+    }
+
+    function drawDragFocusFrame() {
+      if (!dragFocusPoint) return;
+      const source = getCurrentFrameSource();
+      ctx.drawImage(source, 0, 0, 500, 888);
+      const eased = 1 - Math.pow(1 - dragMaskStrength, 3);
+      const dynamicRadius = DRAG_FOCUS_RADIUS * eased;
+      const overlayAlpha = 0.72 * eased;
+      ctx.fillStyle = `rgba(0,0,0,${overlayAlpha.toFixed(3)})`;
+      ctx.fillRect(0, 0, 500, 888);
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(dragFocusPoint.x, dragFocusPoint.y, dynamicRadius, 0, Math.PI * 2);
+      ctx.clip();
+      ctx.drawImage(source, 0, 0, 500, 888);
+      ctx.restore();
+    }
+
+    function updateDragMaskTransition() {
+      const target = dragMaskActive ? 1 : 0;
+      if (dragMaskStrength < target) {
+        dragMaskStrength = Math.min(target, dragMaskStrength + DRAG_MASK_FADE_SPEED);
+      } else if (dragMaskStrength > target) {
+        dragMaskStrength = Math.max(target, dragMaskStrength - DRAG_MASK_FADE_SPEED);
+      }
+
+      if (!dragMaskActive && dragMaskStrength <= 0.001) {
+        dragMaskStrength = 0;
+        dragFocusPoint = null;
+      }
+    }
+
+    function drawBaseFrame(offsetX = 0) {
+      const source = getCurrentFrameSource();
+      ctx.save();
+      ctx.translate(offsetX, 0);
+      ctx.drawImage(source, 0, 0, 500, 888);
+      ctx.restore();
+    }
+
+    function getCurrentFrameSource() {
+      if (renderWaterSurfaceFrame()) {
+        return webglCanvas;
+      }
+      return video;
+    }
+
+    function addWebglRipple(x, y, depVal) {
+      const now = performance.now() * 0.001;
+      webglRippleWaves.push({
+        centerX: x / 500,
+        centerY: 1.0 - (y / 888),
+        startTime: now,
+        strength: Math.max(0.55, Math.min(1.2, depVal / 1000))
+      });
+
+      if (webglRippleWaves.length > WEBGL_MAX_RIPPLES) {
+        webglRippleWaves.splice(0, webglRippleWaves.length - WEBGL_MAX_RIPPLES);
+      }
+    }
+
+    function initWaterWebGL() {
+      webglCanvas = document.createElement('canvas');
+      webglCanvas.width = 500;
+      webglCanvas.height = 888;
+      gl = webglCanvas.getContext('webgl', { alpha: false, antialias: true, premultipliedAlpha: false });
+      if (!gl) return;
+
+      const vertexSrc = `
+        attribute vec2 aPosition;
+        attribute vec2 aUv;
+        varying vec2 vUv;
+        void main() {
+          vUv = aUv;
+          gl_Position = vec4(aPosition, 0.0, 1.0);
+        }
+      `;
+
+      const fragmentSrc = `
+        precision mediump float;
+        varying vec2 vUv;
+        uniform sampler2D uTexture;
+        uniform float uTime;
+        uniform vec2 uCenters[${WEBGL_MAX_RIPPLES}];
+        uniform float uStartTimes[${WEBGL_MAX_RIPPLES}];
+        uniform float uStrengths[${WEBGL_MAX_RIPPLES}];
+        uniform int uRippleCount;
+
+        void main() {
+          vec2 uv = vUv;
+
+          for (int i = 0; i < ${WEBGL_MAX_RIPPLES}; i++) {
+            if (i >= uRippleCount) break;
+
+            vec2 center = uCenters[i];
+            float age = uTime - uStartTimes[i];
+            if (age < 0.0) continue;
+
+            float dist = distance(uv, center);
+            float ripple = sin(dist * 40.0 - age * 10.0) * 0.01;
+            float attenuation = exp(-dist * 3.5) * exp(-age * 1.35) * uStrengths[i];
+            vec2 dir = uv - center;
+            float len = max(length(dir), 0.0001);
+            uv += (dir / len) * ripple * attenuation;
+          }
+
+          gl_FragColor = texture2D(uTexture, uv);
+        }
+      `;
+
+      const vertexShader = createShader(gl.VERTEX_SHADER, vertexSrc);
+      const fragmentShader = createShader(gl.FRAGMENT_SHADER, fragmentSrc);
+      if (!vertexShader || !fragmentShader) {
+        gl = null;
+        return;
+      }
+
+      webglProgram = createProgram(vertexShader, fragmentShader);
+      if (!webglProgram) {
+        gl = null;
+        return;
+      }
+
+      webglUniforms = {
+        aPosition: gl.getAttribLocation(webglProgram, 'aPosition'),
+        aUv: gl.getAttribLocation(webglProgram, 'aUv'),
+        uTexture: gl.getUniformLocation(webglProgram, 'uTexture'),
+        uTime: gl.getUniformLocation(webglProgram, 'uTime'),
+        uCenters: gl.getUniformLocation(webglProgram, 'uCenters[0]'),
+        uStartTimes: gl.getUniformLocation(webglProgram, 'uStartTimes[0]'),
+        uStrengths: gl.getUniformLocation(webglProgram, 'uStrengths[0]'),
+        uRippleCount: gl.getUniformLocation(webglProgram, 'uRippleCount')
+      };
+
+      webglVertexBuffer = gl.createBuffer();
+      gl.bindBuffer(gl.ARRAY_BUFFER, webglVertexBuffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array([
+          -1, -1, 0, 0,
+          1, -1, 1, 0,
+          -1, 1, 0, 1,
+          -1, 1, 0, 1,
+          1, -1, 1, 0,
+          1, 1, 1, 1
+        ]),
+        gl.STATIC_DRAW
+      );
+
+      webglTexture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, webglTexture);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    }
+
+    function createShader(type, source) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        console.warn(gl.getShaderInfoLog(shader));
+        gl.deleteShader(shader);
+        return null;
+      }
+      return shader;
+    }
+
+    function createProgram(vertexShader, fragmentShader) {
+      const program = gl.createProgram();
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        console.warn(gl.getProgramInfoLog(program));
+        gl.deleteProgram(program);
+        return null;
+      }
+      return program;
+    }
+
+    function renderWaterSurfaceFrame() {
+      if (!gl || !webglProgram || !webglTexture || video.readyState < 2) {
+        return false;
+      }
+
+      const now = performance.now() * 0.001;
+      webglRippleWaves = webglRippleWaves.filter(w => (now - w.startTime) <= WEBGL_RIPPLE_DURATION);
+
+      gl.viewport(0, 0, webglCanvas.width, webglCanvas.height);
+      gl.useProgram(webglProgram);
+
+      gl.bindTexture(gl.TEXTURE_2D, webglTexture);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, video);
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, webglVertexBuffer);
+      gl.enableVertexAttribArray(webglUniforms.aPosition);
+      gl.vertexAttribPointer(webglUniforms.aPosition, 2, gl.FLOAT, false, 16, 0);
+      gl.enableVertexAttribArray(webglUniforms.aUv);
+      gl.vertexAttribPointer(webglUniforms.aUv, 2, gl.FLOAT, false, 16, 8);
+
+      gl.uniform1i(webglUniforms.uTexture, 0);
+      gl.uniform1f(webglUniforms.uTime, now);
+      gl.uniform1i(webglUniforms.uRippleCount, webglRippleWaves.length);
+
+      const centers = new Float32Array(WEBGL_MAX_RIPPLES * 2);
+      const startTimes = new Float32Array(WEBGL_MAX_RIPPLES);
+      const strengths = new Float32Array(WEBGL_MAX_RIPPLES);
+      for (let i = 0; i < webglRippleWaves.length; i++) {
+        const w = webglRippleWaves[i];
+        centers[i * 2] = w.centerX;
+        centers[i * 2 + 1] = w.centerY;
+        startTimes[i] = w.startTime;
+        strengths[i] = w.strength;
+      }
+
+      gl.uniform2fv(webglUniforms.uCenters, centers);
+      gl.uniform1fv(webglUniforms.uStartTimes, startTimes);
+      gl.uniform1fv(webglUniforms.uStrengths, strengths);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      return true;
+    }
+
+    function getMountainShakeOffsetX() {
+      if (mountainShakeFramesLeft <= 0) return 0;
+      const progress = mountainShakeFramesLeft / MOUNTAIN_SHAKE_DURATION;
+      const offset = Math.sin((MOUNTAIN_SHAKE_DURATION - mountainShakeFramesLeft) * 2.4) * MOUNTAIN_SHAKE_AMPLITUDE * progress;
+      mountainShakeFramesLeft--;
+      return offset;
     }
 
     function updateScreenShake() {
@@ -634,6 +1034,7 @@
 
     canvas.addEventListener('mousedown', (e) => {
       isDragging = true;
+      dragMaskActive = true;
       startLoopingSound(e.clientX, e.clientY);
     });
 
@@ -648,6 +1049,7 @@
 
     canvas.addEventListener('touchstart', (e) => {
       isDragging = true;
+      dragMaskActive = false;
       const touch = e.touches[0];
       touchStartPos = { x: touch.clientX, y: touch.clientY };
       touchMoved = false;
@@ -662,6 +1064,7 @@
           const dy = touch.clientY - touchStartPos.y;
           if ((dx * dx + dy * dy) > 64) {
             touchMoved = true;
+            dragMaskActive = true;
           }
         }
         updateLoopingSound(touch.clientX, touch.clientY);
@@ -684,8 +1087,19 @@
     });
 
     function startLoopingSound(clientX, clientY) {
-      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      const { segVal, depVal, X, Y } = getSegAndDepth(clientX, clientY, true);
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+      dragFocusPoint = { x: X, y: Y };
+
+      for (let i = 0; i < 2; i++) {
+        dragTrailPoints.push({
+          x: X + (Math.random() * 8 - 4),
+          y: Y + (Math.random() * 8 - 4),
+          size: 0.8 + Math.random() * 1.8,
+          lifetime: 18 + Math.floor(Math.random() * 12),
+          maxLifetime: 30
+        });
+      }
 
       const category = getSegmentCategory(segVal);
       if (navigator.vibrate && category && vibrationPatterns[category]) {
@@ -708,18 +1122,23 @@
       sound.volume = Math.max(0, Math.min(1, dynamicVolume * SFX_VOLUME));
       sound.play();
       currentLoopSound = sound;
-
-      const rect = canvas.getBoundingClientRect();
-      const x = clientX - rect.left;
-      const y = clientY - rect.top;
-      const X = Math.floor(x * 500 / canvas.clientWidth);
-      const Y = Math.floor(y * 888 / canvas.clientHeight);
       sparklePoints.push({ pos: [X, Y], lifetime: SPARKLE_LIFETIME });
     }
 
     function updateLoopingSound(clientX, clientY) {
-      const { segVal, depVal } = getSegAndDepth(clientX, clientY);
+      const { segVal, depVal, X, Y } = getSegAndDepth(clientX, clientY, true);
       if (segVal == null || depVal == null || !(segVal in segDrag)) return;
+      dragFocusPoint = { x: X, y: Y };
+
+      for (let i = 0; i < 2; i++) {
+        dragTrailPoints.push({
+          x: X + (Math.random() * 10 - 5),
+          y: Y + (Math.random() * 10 - 5),
+          size: 0.8 + Math.random() * 2.4,
+          lifetime: 16 + Math.floor(Math.random() * 14),
+          maxLifetime: 30
+        });
+      }
 
       if (segVal === currentLoopSegVal) {
         if (currentLoopSound && !currentLoopSound.paused) {
@@ -742,6 +1161,7 @@
 
     function stopLoopingSound() {
       isDragging = false;
+      dragMaskActive = false;
       if (currentLoopSound) {
         currentLoopSound.pause();
         currentLoopSound.currentTime = 0;
@@ -797,7 +1217,16 @@
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       gameScreen.style.transform = 'translateY(0px)';
       shakeFramesLeft = 0;
+      mountainShakeFramesLeft = 0;
       rippleEffects = [];
+      skyShadowEffects = [];
+      fadeFlashEffects = [];
+      burstEffects = [];
+      dragTrailPoints = [];
+      dragFocusPoint = null;
+      dragMaskActive = false;
+      dragMaskStrength = 0;
+      webglRippleWaves = [];
     }
 
     function showSamples() {
@@ -830,16 +1259,22 @@
     }
 
     function getSegmentCategory(segVal) {
-      const grassIds = [13];
+      const grassIds = [0, 140];
       const mountainIds = [16];
       const waterIds = [21, 26];
       const skyIds = [2];
-      const buildingIds = [1, 76, 86];
+      const buildingIds = [1, 86];
+      const boatIds = [76];
+      const landIds = [94];
+      const earthIds = [13];
 
       if (grassIds.includes(segVal)) return 'grass';
       if (mountainIds.includes(segVal)) return 'mountain';
       if (waterIds.includes(segVal)) return 'water';
       if (skyIds.includes(segVal)) return 'sky';
+      if (boatIds.includes(segVal)) return 'boat';
+      if (landIds.includes(segVal)) return 'land';
+      if (earthIds.includes(segVal)) return 'earth';
       if (buildingIds.includes(segVal)) return 'building';
       return null;
     }

@@ -22,7 +22,7 @@
     }
     #upload-screen {
       min-height: 100vh;
-      display: flex;
+      display: none;
       flex-direction: column;
       justify-content: center;
       align-items: center;
@@ -30,7 +30,7 @@
     }
     #menu {
       min-height: 100vh;
-      display: none;
+      display: flex;
       flex-direction: column;
       justify-content: space-evenly;
       align-items: center;
@@ -122,6 +122,11 @@
       background-color: #45a049;
       transform: scale(1.02);
     }
+    .file-input-label[aria-disabled="true"] {
+      background-color: #9e9e9e;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
     .file-name {
       margin-top: 10px;
       font-size: 14px;
@@ -154,6 +159,11 @@
       font-size: 14px;
       color: #666;
       line-height: 1.6;
+    }
+    .disabled-note {
+      margin-top: 20px;
+      font-size: 13px;
+      color: #888;
     }
     .loading-overlay {
       display: none;
@@ -188,15 +198,16 @@
   </style>
 </head>
 <body>
-  <!-- アップロード画面（トップページ） -->
+  <!-- アップロード画面（現在は非表示） -->
   <div id="upload-screen">
     <div class="upload-container">
       <h1>Views</h1>
       <p class="info-text">風景動画をアップロードして、音で遊んでみましょう</p>
+      <p class="disabled-note">アップロード機能は一時停止中です。下のサンプル一覧をご利用ください。</p>
       
       <div class="file-input-wrapper">
-        <input type="file" id="videoUpload" accept="video/*" />
-        <label for="videoUpload" class="file-input-label">動画を選択</label>
+        <input type="file" id="videoUpload" accept="video/*" disabled />
+        <label for="videoUpload" class="file-input-label" aria-disabled="true">動画を選択</label>
         <div class="file-name" id="fileName"></div>
       </div>
       
@@ -234,7 +245,7 @@
       <img src="assets/image/singapore_at_night_2_m.jpg" alt="シンガポール" />
     </button>
 
-    <button class="back-button" onclick="goBackToUpload()">戻る</button>
+    <p class="disabled-note">アップロード機能は一時停止中です。</p>
   </div>
 
   <!-- ゲーム画面 -->
@@ -1243,18 +1254,14 @@
 
     function goBack() {
       document.getElementById('game').style.display = 'none';
-      
-      // アップロード動画から戻る場合はアップロード画面へ
+
       if (uploadedVideoURL) {
-        document.getElementById('upload-screen').style.display = 'flex';
-        if (uploadedVideoURL) {
-          URL.revokeObjectURL(uploadedVideoURL);
-          uploadedVideoURL = null;
-        }
-      } else {
-        // サンプルから戻る場合はメニューへ
-        document.getElementById('menu').style.display = 'flex';
+        URL.revokeObjectURL(uploadedVideoURL);
+        uploadedVideoURL = null;
       }
+
+      document.getElementById('upload-screen').style.display = 'none';
+      document.getElementById('menu').style.display = 'flex';
 
       if (currentBgm) {
         currentBgm.pause();
@@ -1299,8 +1306,8 @@
     }
 
     function goBackToUpload() {
-      document.getElementById('menu').style.display = 'none';
-      document.getElementById('upload-screen').style.display = 'flex';
+      document.getElementById('menu').style.display = 'flex';
+      document.getElementById('upload-screen').style.display = 'none';
     }
 
     window.startGame = startGame;
